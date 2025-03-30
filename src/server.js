@@ -21,7 +21,7 @@ const io = new Server(server, {
   cors: {
     origin: [
       "https://fashionstoreshopecommertbe.onrender.com",
-      "http://localhost:5173",
+      "https://fashion-store-shop-ecommert.vercel.app/",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -32,7 +32,7 @@ app.use(
   cors({
     origin: [
       "https://fashionstoreshopecommertbe.onrender.com",
-      "http://localhost:5173",
+      "https://fashion-store-shop-ecommert.vercel.app/",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
