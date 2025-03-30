@@ -19,7 +19,10 @@ const session = require("express-session");
 // Cấu hình CORS cho Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["https://fashionstoreshopecommertbe.onrender.com"],
+    origin: [
+      "https://fashionstoreshopecommertbe.onrender.com",
+      "http://localhost:5173",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
@@ -27,7 +30,10 @@ const io = new Server(server, {
 
 app.use(
   cors({
-    origin: ["https://fashionstoreshopecommertbe.onrender.com"],
+    origin: [
+      "https://fashionstoreshopecommertbe.onrender.com",
+      "http://localhost:5173",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
