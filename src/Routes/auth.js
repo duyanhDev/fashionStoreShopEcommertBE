@@ -27,7 +27,7 @@ router.get(
     );
   }
 );
-
+console.log("11");
 // Route kiểm tra thông tin user (bảo vệ bằng middleware)
 router.get("/user", authMiddleware, (req, res) => {
   res.json({
