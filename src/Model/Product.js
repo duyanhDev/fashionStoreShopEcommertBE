@@ -168,7 +168,7 @@ const productSchema = new mongoose.Schema({
 
 productSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
-  this.discountedPrice = this.costPrice * (1 - this.discount / 100);
+  this.discountedPrice = this.price * (1 - this.discount / 100);
   this.normalizedName = this.name
     .toLowerCase()
     .normalize("NFD")

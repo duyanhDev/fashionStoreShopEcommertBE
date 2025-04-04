@@ -33,6 +33,8 @@ const CreateOrder = async (req, res) => {
       idDiscount,
     } = req.body;
 
+    console.log(items);
+
     if (!userId || !items || !paymentMethod || !shippingAddress) {
       return res
         .status(400)
@@ -239,7 +241,7 @@ const CreateOrder = async (req, res) => {
 
         // Tạo embed_data
         const embed_data = {
-          redirecturl: "https://fashion-store-shop-ecommert.vercel.app/",
+          redirecturl: "http://localhost:5173/",
           merchantinfo: "Doisin Store",
           promotioninfo: "",
           redirectdata: "",
@@ -414,10 +416,8 @@ const CreateOrder = async (req, res) => {
       const secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
       const orderInfo = "pay with MoMo";
       const partnerCode = "MOMO";
-      const redirectUrl =
-        "    https://fashion-store-shop-ecommert.vercel.app/vnpay_return";
-      const ipnUrl =
-        "    https://fashion-store-shop-ecommert.vercel.app/vnpay_return";
+      const redirectUrl = "http://localhost:5173/vnpay_return";
+      const ipnUrl = "http://localhost:5173/vnpay_return";
       const requestType = "payWithMethod";
       const amount = totalAmount;
       const orderId = partnerCode + new Date().getTime(); // Generate a unique order ID

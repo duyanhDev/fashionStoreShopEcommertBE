@@ -387,7 +387,7 @@ const UpdateProductsAPI = async (req, res) => {
     }
 
     // Tính toán giá sau giảm giá
-    const finalCostPrice = costPrice || existingProduct.costPrice;
+    const finalCostPrice = price || existingProduct.price;
     const finalDiscount = discount || existingProduct.discount;
     const discountedPrice = finalCostPrice * (1 - finalDiscount / 100);
 
@@ -403,7 +403,7 @@ const UpdateProductsAPI = async (req, res) => {
       discount: finalDiscount,
       stock: stock ? Number(stock) : existingProduct.stock,
       sold: sold ? Number(sold) : existingProduct.sold,
-      costPrice: finalCostPrice,
+      costPrice: costPrice ? Number(costPrice) : existingProduct.costPrice,
       discountedPrice,
       variants, // Cập nhật variants
     };
