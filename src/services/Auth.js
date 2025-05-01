@@ -41,13 +41,13 @@ const LoginUser = async (email, password) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "1d",
     });
 
     const refreshToken = jwt.sign(
       { id: user._id },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "1d" }
     );
     return {
       token,
@@ -115,9 +115,31 @@ const verifyOTP = async (email, otp) => {
     return { success: false, message: "Lỗi hệ thống", error };
   }
 };
+
+const RefreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken)
+      return res.status(401).json({ message: "No refresh token provided" });
+
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await Users.findById(decoded.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const newAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    res.json({ token: newAccessToken });
+  } catch (error) {
+    return res.status(403).json({ message: "Invalid refresh token" });
+  }
+};
+
 module.exports = {
   RegisterUser,
   LoginUser,
   SendverifyFileOTP,
   verifyOTP,
+  RefreshToken,
 };

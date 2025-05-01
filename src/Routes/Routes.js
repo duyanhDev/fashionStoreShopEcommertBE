@@ -29,6 +29,7 @@ const {
   ChanglePasswordAPI,
   SendverifyFileOTPUser,
   verifyOTPUser,
+  DeleteUser,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -113,6 +114,7 @@ RouterAPI.get("/profile-users", ListOneUserAPI);
 RouterAPI.put("/updateProfile", UpDateProfileUserAPI);
 RouterAPI.put("/changel-passsword", ChanglePasswordAPI);
 RouterAPI.post("/forgetpassword", Forgotpassword);
+RouterAPI.delete("/delete-user/:id", DeleteUser);
 
 // Cart
 RouterAPI.post("/cart", addToCart);

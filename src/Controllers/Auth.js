@@ -12,9 +12,6 @@ require("dotenv").config;
 const RegisterUserAPI = async (req, res) => {
   try {
     const { name, email, password, isAdmin } = req.body;
-    console.log("check name", name);
-    console.log("check emal", email);
-    console.log("check pas", password);
 
     let avatarUrl = ""; // Thay đổi từ 'const' sang 'let'
 
@@ -289,6 +286,21 @@ const verifyOTPUser = async (req, res) => {
   }
 };
 
+const DeleteUser = async (req, res) => {
+  try {
+    let { id } = req.params;
+
+    const user = await Users.deleteOne({ _id: id });
+    const io = req.app.get("io");
+    io.emit("userDeleted", { userId: id }); // phát đến toàn bộ client
+    return res.status(201).json({
+      EC: 0,
+      message: "Bạn đã xóa thành công tài khoản",
+      data: user,
+    });
+  } catch (error) {}
+};
+
 module.exports = {
   RegisterUserAPI,
   LoginUserAPI,
@@ -299,4 +311,5 @@ module.exports = {
   Forgotpassword,
   SendverifyFileOTPUser,
   verifyOTPUser,
+  DeleteUser,
 };
