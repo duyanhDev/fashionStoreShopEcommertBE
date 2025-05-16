@@ -175,9 +175,6 @@ const UpdateCartQuantity = async (req, res) => {
   try {
     const { itemId, cartId } = req.params;
     const { userId, quantity } = req.body;
-    console.log("x", quantity);
-    console.log(itemId);
-    console.log(cartId);
     // Tìm giỏ hàng của user
     const userCart = await Cart.findOne({ userId: userId });
 

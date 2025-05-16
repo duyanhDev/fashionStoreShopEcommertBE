@@ -1,4 +1,3 @@
-// MessageChat.js
 const Message = require("../Model/Message");
 const { uploadFileToCloudinary } = require("../services/Cloudinary");
 const {
@@ -261,13 +260,14 @@ const getMessagesSenderList = async (req, res) => {
     // Nhóm tin nhắn theo người liên quan và lấy tin nhắn mới nhất
     const conversations = {};
     messages.forEach((message) => {
-      // Xác định người liên quan (ngoài user hiện tại)
+      // Bỏ qua nếu sender hoặc recipient bị null
+      if (!message.sender || !message.recipient) return;
+
       const otherUserId =
         message.sender._id.toString() === sender
           ? message.recipient._id.toString()
           : message.sender._id.toString();
 
-      // Chỉ cập nhật nếu chưa có hoặc tin nhắn hiện tại mới hơn
       if (
         !conversations[otherUserId] ||
         new Date(message.sentAt) > new Date(conversations[otherUserId].sentAt)
@@ -276,8 +276,8 @@ const getMessagesSenderList = async (req, res) => {
           recipient:
             message.sender._id.toString() === sender
               ? message.recipient
-              : message.sender, // Người liên quan (ngoài user hiện tại)
-          messageSender: message.sender, // Người gửi tin nhắn mới nhất
+              : message.sender,
+          messageSender: message.sender,
           content: message.content,
           sentAt: message.sentAt,
           isRead: message.isRead || false,

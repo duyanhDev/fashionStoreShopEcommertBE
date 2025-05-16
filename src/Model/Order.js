@@ -45,6 +45,7 @@ const orderSchema = new mongoose.Schema({
       "Delivered", // duyêt đơn giao hàng (another state)
       "Shipping", // Giao hàng thanh công cho bên vận chyuyeenr
       "Completed", // Đã xong
+      "Cancelled", // Đã hủy đơn hàng
     ],
     default: "Processing",
   },

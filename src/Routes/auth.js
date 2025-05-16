@@ -22,12 +22,10 @@ router.get(
     });
 
     // Chuyển hướng về frontend với token
-    res.redirect(
-      `https://fashion-store-shop-ecommert.vercel.app/auth/callback?token=${token}`
-    );
+    res.redirect(`http://localhost:5173/auth/callback?token=${token}`);
   }
 );
-console.log("11");
+
 // Route kiểm tra thông tin user (bảo vệ bằng middleware)
 router.get("/user", authMiddleware, (req, res) => {
   res.json({
@@ -36,6 +34,7 @@ router.get("/user", authMiddleware, (req, res) => {
     name: req.user.name,
     email: req.user.email,
     isAdmin: req.user.isAdmin,
+    role: req.user.role,
     avatar: req.user.avatar, // Trả về avatar
   });
 });

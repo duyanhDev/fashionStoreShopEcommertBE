@@ -24,10 +24,7 @@ const MessageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isAdminChat: {
-      type: Boolean,
-      default: false,
-    },
+    role: { type: String, enum: ["admin", "customer"] },
     sentAt: {
       type: Date,
       default: Date.now,

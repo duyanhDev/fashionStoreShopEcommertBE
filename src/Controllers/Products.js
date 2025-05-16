@@ -27,7 +27,6 @@ const AddProductsAPI = async (req, res) => {
     color,
     costPrice,
   } = req.body;
-  const quantity = 100;
 
   // Parse sizes and colors into arrays
   const sizeArray = Array.isArray(size)
@@ -68,7 +67,7 @@ const AddProductsAPI = async (req, res) => {
           color: colorArray[i],
           sizes: sizeArray.map((size) => ({
             size,
-            quantity: quantity,
+            quantity: stock,
             sold: 0,
           })),
           images: [{ url: result.secure_url }],
@@ -82,7 +81,11 @@ const AddProductsAPI = async (req, res) => {
         .json({ success: false, message: "Lỗi khi tải ảnh lên Cloudinary" });
     }
   }
-
+  const totalStock = variants.reduce(
+    (acc, variant) =>
+      acc + variant.sizes.reduce((sum, sz) => sum + (sz.quantity || 0), 0),
+    0
+  );
   const productData = {
     name,
     gender,
@@ -92,7 +95,7 @@ const AddProductsAPI = async (req, res) => {
     care,
     price,
     discount,
-    stock,
+    totalStock,
     variants,
     costPrice,
   };
@@ -274,11 +277,13 @@ const UpdateProductsAPI = async (req, res) => {
       discount,
       stock,
       sold,
-      size, // New sizes to update for the "black" variant
+      size,
       color,
       costPrice,
     } = req.body;
     const { id } = req.params;
+    console.log("stock", stock);
+    console.log("sold", sold);
 
     // Lấy thông tin sản phẩm cũ từ database
     const existingProduct = await Products.findById(id);
@@ -326,21 +331,40 @@ const UpdateProductsAPI = async (req, res) => {
 
           if (existingVariant) {
             existingVariant.images.push({ url: resultImage.secure_url });
-            existingVariant.sizes = sizeArray.map((size) => ({
-              size,
-              quantity:
-                existingVariant.sizes.find((s) => s.size === size)?.quantity ||
-                100,
-              sold:
-                existingVariant.sizes.find((s) => s.size === size)?.sold || 0,
-            }));
+
+            // Cập nhật sizes mà không trùng lặp
+            const updatedSizes = [];
+            const existingSizesMap = new Map(
+              existingVariant.sizes.map((s) => [s.size, s])
+            );
+
+            sizeArray.forEach((size) => {
+              if (existingSizesMap.has(size)) {
+                // Nếu size đã tồn tại, giữ nguyên quantity và sold cũ, chỉ cập nhật nếu có thay đổi
+                const existingSize = existingSizesMap.get(size);
+                updatedSizes.push({
+                  size,
+                  quantity: existingSize.quantity || stock,
+                  sold: existingSize.sold || 0, // Giữ nguyên sold cũ, không cập nhật từ req.body
+                });
+              } else {
+                // Nếu size mới, thêm mới với quantity và sold
+                updatedSizes.push({
+                  size,
+                  quantity: stock,
+                  sold: 0, // Giá trị sold mặc định cho size mới
+                });
+              }
+            });
+
+            existingVariant.sizes = updatedSizes;
           } else {
             const newVariant = {
               color: colorArray[i],
               sizes: sizeArray.map((size) => ({
                 size,
-                quantity: 100,
-                sold: 0,
+                quantity: stock,
+                sold: 0, // Giá trị sold mặc định cho variant mới
               })),
               images: [{ url: resultImage.secure_url }],
             };
@@ -355,37 +379,76 @@ const UpdateProductsAPI = async (req, res) => {
         });
       }
     } else if (sizeArray.length > 0) {
-      // Nếu không có ảnh mới nhưng có size mới, chỉ cập nhật sizes cho variant "black"
+      // Nếu không có ảnh mới nhưng có size mới, cập nhật sizes cho variant "black"
       const blackVariantIndex = variants.findIndex(
-        (variant) => variant.color === "black"
+        (variant) => variant.color === "đen"
       );
 
       if (blackVariantIndex !== -1) {
-        // Cập nhật sizes cho variant "black"
-        variants[blackVariantIndex].sizes = sizeArray.map((size) => ({
-          size,
-          quantity:
-            variants[blackVariantIndex].sizes.find((s) => s.size === size)
-              ?.quantity || 100,
-          sold:
-            variants[blackVariantIndex].sizes.find((s) => s.size === size)
-              ?.sold || 0,
-        }));
+        // Cập nhật sizes cho variant "black" mà không trùng lặp
+        const updatedSizes = [];
+        const existingSizesMap = new Map(
+          variants[blackVariantIndex].sizes.map((s) => [s.size, s])
+        );
+
+        sizeArray.forEach((size) => {
+          if (existingSizesMap.has(size)) {
+            // Nếu size đã tồn tại, giữ nguyên sold cũ, chỉ cập nhật quantity
+            const existingSize = existingSizesMap.get(size);
+            updatedSizes.push({
+              size,
+              quantity: stock || existingSize.quantity,
+              sold: existingSize.sold || 0,
+            });
+          } else {
+            // Nếu size mới, thêm mới với quantity và sold
+            updatedSizes.push({
+              size,
+              quantity: stock,
+              sold: 0, // Giá trị sold mặc định cho size mới
+            });
+          }
+        });
+
+        variants[blackVariantIndex].sizes = updatedSizes;
       } else if (sizeArray.length > 0) {
         // Nếu không tìm thấy variant "black" và có size mới, thêm variant "black"
         variants.push({
-          color: "black",
+          color: "đen",
           sizes: sizeArray.map((size) => ({
             size,
-            quantity: 100,
+            quantity: stock,
             sold: 0,
           })),
           images: existingProduct.variants.find((v) => v.images.length > 0)
-            ?.images || [{ url: "default-image-url" }], // Cần có ảnh mặc định nếu không có ảnh cũ
+            ?.images || [{ url: "default-image-url" }],
         });
       }
     }
 
+    // Phân bổ giá trị sold từ req.body cho tất cả sizes trong variants (nếu cần)
+    if (sold !== undefined && variants.length > 0) {
+      const totalSizes = variants.reduce(
+        (acc, variant) => acc + variant.sizes.length,
+        0
+      );
+      const soldPerSize =
+        totalSizes > 0 ? Math.floor(Number(sold) / totalSizes) : 0;
+
+      variants.forEach((variant) => {
+        variant.sizes.forEach((sizeObj) => {
+          sizeObj.sold = soldPerSize; // Phân bổ sold đều cho từng size
+        });
+      });
+    }
+
+    console.log(variants.sizes);
+
+    const totalStock = variants.reduce(
+      (acc, variant) =>
+        acc + variant.sizes.reduce((sum, sz) => sum + (sz.quantity || 0), 0),
+      0
+    );
     // Tính toán giá sau giảm giá
     const finalCostPrice = price || existingProduct.price;
     const finalDiscount = discount || existingProduct.discount;
@@ -401,11 +464,11 @@ const UpdateProductsAPI = async (req, res) => {
       care: care || existingProduct.care,
       price: price ? Number(price) : existingProduct.price,
       discount: finalDiscount,
-      stock: stock ? Number(stock) : existingProduct.stock,
+      stock: totalStock,
       sold: sold ? Number(sold) : existingProduct.sold,
       costPrice: costPrice ? Number(costPrice) : existingProduct.costPrice,
       discountedPrice,
-      variants, // Cập nhật variants
+      variants,
     };
 
     // Update sản phẩm

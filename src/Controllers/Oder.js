@@ -213,7 +213,7 @@ const CreateOrder = async (req, res) => {
         ", "
       )}`,
     });
-    const admins = await Users.find({ isAdmin: true });
+    const admins = await Users.find({ role: "admin" });
 
     if (!admins.length) {
       return;
@@ -306,6 +306,9 @@ const CreateOrder = async (req, res) => {
         } else {
           console.log("Không có sản phẩm nào được xóa.");
         }
+
+        newOrder.paymentStatus = "Completed";
+        await newOrder.save();
         if (result.data.return_code === 1) {
           return res.status(200).json({
             EC: 0,
@@ -579,28 +582,23 @@ const UpDateOrder = async (req, res) => {
       const product = await Product.findById(item.productId);
 
       if (product) {
+        // Cập nhật tổng số lượng tồn kho và đã bán
         product.stock = Math.max(product.stock - item.quantity, 0);
-        product.sold += item.quantity;
+        product.sold = (product.sold || 0) + item.quantity;
 
-        if (product) {
-          // Cập nhật tổng số lượng tồn kho và số lượng đã bán
-          product.stock = Math.max(product.stock - item.quantity, 0);
-          product.sold = (product.sold || 0) + item.quantity;
-
-          for (const variant of product.variants) {
-            //
-            if (variant.color === item.color) {
-              for (const size of variant.sizes) {
-                if (size.size === item.size) {
-                  size.quantity = Math.max(size.quantity - item.quantity, 0);
-                  size.sold = (size.sold || 0) + item.quantity;
-                }
+        // Cập nhật theo biến thể (variant) và size
+        for (const variant of product.variants) {
+          if (variant.color === item.color) {
+            for (const size of variant.sizes) {
+              if (size.size === item.size) {
+                size.quantity = Math.max(size.quantity - item.quantity, 0);
+                size.sold = (size.sold || 0) + item.quantity;
               }
             }
           }
         }
 
-        // Lưu sản phẩm sau khi cập nhật
+        // Lưu lại sản phẩm đã cập nhật
         await product.save();
       } else {
         return res
@@ -631,8 +629,6 @@ const UpDateOrder = async (req, res) => {
 const UpDateDelivered = async (req, res) => {
   try {
     const { id } = req.body;
-
-    console.log(id);
 
     // Cập nhật trạng thái đơn hàng
     const order = await Order.findOneAndUpdate(
@@ -798,6 +794,8 @@ const UpDateCompleted = async (req, res) => {
   }
 };
 
+// tổng thu nhập
+
 const getTotalProductsSold = async (req, res) => {
   try {
     const orders = await Order.find();
@@ -868,7 +866,10 @@ const getOrderOneProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const data = await Order.findOne({ _id: id });
+    const data = await Order.findOne({ _id: id }).populate({
+      path: "items.productId",
+      select: "name variants.images discountedPrice",
+    });
     return res.status(200).json({
       EC: 0,
       data: data,
@@ -878,6 +879,78 @@ const getOrderOneProduct = async (req, res) => {
   }
 };
 
+// cập nhật trạng thái đơn hàng (hủy đơn hàng)
+const UpDateOrderStatus = async (req, res) => {
+  try {
+    let { id } = req.params;
+
+    let orderStatus = req.body.orderStatus;
+
+    if (!id || !orderStatus) {
+      return res
+        .status(400)
+        .json({ message: "All required fields must be provided." });
+    }
+
+    if (!orderStatus) {
+      return res.status(400).json({
+        message: "Invalid order status. Only 'Cancelled' is allowed.",
+      });
+    }
+
+    // socker
+
+    const io = req.app.get("io");
+    io.emit(`order-update-${id}`, {
+      orderId: id,
+      status: orderStatus,
+      message: `Đơn hàng của bạn đã bị hủy`,
+    });
+    const order = await Order.findOneAndUpdate(
+      { _id: id },
+      { orderStatus: orderStatus },
+      { new: true } // Chỉ định trả về đối tượng đã cập nhật
+    );
+
+    return res.status(200).json({
+      EC: 0,
+      message: "Order status updated successfully",
+      data: order,
+    });
+  } catch (error) {}
+};
+
+// lọc theo trạng thái đơn hàng
+
+const filterOrdersByStatus = async (req, res) => {
+  try {
+    const { status } = req.params; // Lấy trạng thái từ tham số URL
+    console.log(status);
+
+    // Kiểm tra xem trạng thái có hợp lệ không
+    const validStatuses = [
+      "Processing", // Chờ xác nhận
+      "Delivered", // duyêt đơn giao hàng (another state)
+      "Shipping", // Giao hàng thanh công cho bên vận chyuyeenr
+      "Completed", // Đã xong
+      "Cancelled",
+    ];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid order status" });
+    }
+
+    // Tìm kiếm đơn hàng theo trạng thái
+    const orders = await Order.find({ orderStatus: status });
+
+    return res.status(200).json({
+      EC: 0,
+      data: orders,
+    });
+  } catch (error) {
+    console.error("Error filtering orders by status:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 module.exports = {
   CreateOrder,
   listOderUserId,
@@ -888,4 +961,6 @@ module.exports = {
   getOrderOneProduct,
   UpDateDelivered,
   UpDateCompleted,
+  UpDateOrderStatus,
+  filterOrdersByStatus,
 };

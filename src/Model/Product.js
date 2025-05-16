@@ -178,7 +178,7 @@ productSchema.pre("save", function (next) {
 
 // Virtual để tính số tiền nhập hàng (totalCost)
 productSchema.virtual("totalCost").get(function () {
-  return this.price * this.stock;
+  return this.costPrice * this.stock;
 });
 productSchema.set("toJSON", { virtuals: true });
 productSchema.set("toObject", { virtuals: true });
