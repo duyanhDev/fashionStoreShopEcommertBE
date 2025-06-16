@@ -31,9 +31,8 @@ const CreateOrder = async (req, res) => {
       productId,
       discountValue,
       idDiscount,
+      order_code,
     } = req.body;
-
-    console.log(items);
 
     if (!userId || !items || !paymentMethod || !shippingAddress) {
       return res
@@ -151,6 +150,7 @@ const CreateOrder = async (req, res) => {
       paymentMethod,
       totalAmount,
       idDiscount,
+      order_code,
     });
     await newOrder.save();
 
@@ -203,6 +203,36 @@ const CreateOrder = async (req, res) => {
       message: `Bạn đã đặt hàng thành công với các sản phẩm và đang chờ shop xác nhận: ${nameProduct}`,
       isCheck: false,
     });
+
+    const admins = await Users.find({ role: "admin" });
+    // trừ mã giảm giá
+    const idVoucher = idDiscount;
+
+    // Lấy voucher hiện tại để lấy usageLimit
+    if (idVoucher) {
+      const voucher = await Voucher.findById(idVoucher);
+
+      // Cập nhật usageLimit và usedCount
+      voucher.usageLimit -= 1;
+      voucher.usedCount += 1;
+      // Kiểm tra xem user đã nằm trong appliedUsers chưa
+      const existingUser = voucher.appliedUsers.find(
+        (u) => u.user.toString() === userId.toString()
+      );
+
+      if (existingUser) {
+        existingUser.usedCount += 1;
+      } else {
+        voucher.appliedUsers.push({
+          user: userId,
+          usedCount: 1,
+        });
+      }
+
+      // Lưu thay đổi
+      await voucher.save();
+    }
+
     await userNotification.save();
     const io = req.app.get("io");
     io.emit(`order-update-${newOrder.userId}`, {
@@ -213,8 +243,6 @@ const CreateOrder = async (req, res) => {
         ", "
       )}`,
     });
-    const admins = await Users.find({ role: "admin" });
-
     if (!admins.length) {
       return;
     }
@@ -726,33 +754,6 @@ const UpDateCompleted = async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
-    }
-
-    // trừ mã giảm giá
-    const idVoucher = order.idDiscount;
-
-    // Lấy voucher hiện tại để lấy usageLimit
-
-    if (idVoucher) {
-      try {
-        // Lấy voucher hiện tại để lấy usageLimit
-        const voucher = await Voucher.findById(idVoucher);
-        if (!voucher) {
-          throw new Error("Voucher không tồn tại");
-        }
-
-        // Giảm usageLimit và cập nhật lại voucher
-        const voucherProduct = await Voucher.findOneAndUpdate(
-          { _id: idVoucher },
-          {
-            $set: { usageLimit: voucher.usageLimit - 1 },
-          },
-          { new: true } // Để trả về dữ liệu mới sau khi cập nhật
-        );
-        console.log(voucherProduct);
-      } catch (error) {
-        console.error("Lỗi khi cập nhật voucher:", error);
-      }
     }
 
     // Lấy danh sách sản phẩm từ đơn hàng

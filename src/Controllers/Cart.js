@@ -96,6 +96,64 @@ const addToCart = async (req, res) => {
   }
 };
 
+const addMultipleToCart = async (req, res) => {
+  const { userId, items } = req.body;
+
+  try {
+    if (!userId || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Missing userId or items" });
+    }
+
+    let cart = await Cart.findOne({ userId });
+    if (!cart) {
+      cart = new Cart({ userId, items: [], totalPrice: 0 });
+    }
+
+    for (const item of items) {
+      const { productId, quantity, size, color, price } = item.product;
+      console.log(productId, quantity, size, color, price);
+
+      const product = await Product.findById(productId);
+      if (!product) continue;
+
+      const finalPrice = product.discountedPrice || product.price;
+
+      const itemIndex = cart.items.findIndex(
+        (i) =>
+          i.productId.toString() === productId &&
+          i.size === size &&
+          i.color === color
+      );
+
+      if (itemIndex > -1) {
+        cart.items[itemIndex].quantity = quantity;
+        cart.items[itemIndex].totalItemPrice = finalPrice * quantity;
+      } else {
+        cart.items.push({
+          productId,
+          quantity,
+          size,
+          color,
+          price,
+          totalItemPrice: finalPrice * quantity,
+        });
+      }
+    }
+
+    cart.totalPrice = cart.items.reduce(
+      (sum, item) => sum + (item.totalItemPrice || 0),
+      0
+    );
+
+    cart.updatedAt = Date.now();
+    await cart.save();
+    res.status(200).json({ message: "Added multiple items to cart", cart });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 const getCartProduct = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -242,6 +300,7 @@ const UpdateCartQuantity = async (req, res) => {
 
 module.exports = {
   addToCart,
+  addMultipleToCart,
   getCartProduct,
   RemoveCartProductfirst,
   UpdateCartQuantity,

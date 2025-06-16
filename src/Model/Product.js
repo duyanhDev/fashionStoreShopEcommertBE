@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const Ratings = require("../Model/rating");
 const productSchema = new mongoose.Schema({
   normalizedName: {
     type: String,
@@ -80,78 +80,7 @@ const productSchema = new mongoose.Schema({
       ],
     },
   ],
-  ratings: [
-    {
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
-      },
-      rating: {
-        type: Number,
-        min: 1,
-        max: 5,
-      },
-      review: {
-        type: String,
-      },
-      images: [
-        {
-          type: String,
-        },
-      ],
-
-      likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Users" }],
-      replies: [
-        {
-          userId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Users",
-          },
-          content: {
-            type: String,
-            required: true,
-          },
-          likes: [
-            {
-              type: mongoose.Schema.Types.ObjectId,
-              ref: "Users",
-            },
-          ],
-          createdAt: {
-            type: Date,
-            default: Date.now,
-          },
-
-          replies: [
-            {
-              userId: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Users",
-              },
-              content: {
-                type: String,
-                required: true,
-              },
-              likes: [
-                {
-                  type: mongoose.Schema.Types.ObjectId,
-                  ref: "Users",
-                },
-              ], // Người dùng like phản hồi cấp 2
-              createdAt: {
-                type: Date,
-                default: Date.now,
-              },
-            },
-          ],
-        },
-      ],
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
-    },
-  ],
+  ratings: [Ratings],
   costPrice: {
     type: Number, // giá bán hàng
     required: true,

@@ -18,7 +18,16 @@ const AddProducts = async (productData) => {
 
 const ListProducts = async () => {
   try {
-    const products = await Products.find({}).populate("category", "name");
+    const products = await Products.find({})
+      .populate("category", "name")
+      .populate({
+        path: "ratings.userId", // Lấy thông tin userId trong ratings
+        select: "name avatar", // Chỉ lấy trường name từ model Users
+      })
+      .populate({
+        path: "ratings.replies.userId", // Lấy thông tin userId trong ratings
+        select: "name avatar", // Chỉ lấy trường name từ model Users
+      });
 
     // Chuyển đổi từng sản phẩm để bao gồm virtual fields
     const data = products.map((product) => product.toJSON());

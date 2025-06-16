@@ -10,6 +10,7 @@ const {
   CategoryGenderAPI,
   CategoryGenderFitterAPI,
   toggleLikeRatingAPI,
+  toggleLikeReply,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -36,6 +37,7 @@ const {
   getCartProduct,
   RemoveCartProductfirst,
   UpdateCartQuantity,
+  addMultipleToCart,
 } = require("./../Controllers/Cart");
 const {
   CreateOrder,
@@ -77,21 +79,121 @@ const {
   getWishlist,
   RemoveToWishList,
 } = require("../Controllers/WishList");
+const {
+  createBlogController,
+  updateBlogController,
+} = require("../Controllers/Blog");
 
 //product
-
+/**
+ * @swagger
+ * /products:
+ *   get:
+ *     summary: Lấy danh sách tất cả sản phẩm
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Thành công
+ */
 RouterAPI.get("/products", ListProductsAPI);
+
+/**
+ * @swagger
+ * /products:
+ *   post:
+ *     summary: Thêm mới một sản phẩm
+ *     tags: [Products]
+ *     responses:
+ *       201:
+ *         description: Tạo sản phẩm thành công
+ */
 
 RouterAPI.post("/products", AddProductsAPI);
 
+/**
+ * @swagger
+ * /products/{id}:
+ *   get:
+ *     summary: Lấy thông tin chi tiết của một sản phẩm
+ *     tags: [Products]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID của sản phẩm
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Thông tin sản phẩm
+ */
 RouterAPI.get("/products/:id", ListOneProductAPI);
 
+/**
+ * @swagger
+ * /products/{id}:
+ *   put:
+ *     summary: Cập nhật thông tin chi tiết của một sản phẩm
+ *     tags: [Products]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID của sản phẩm
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Cập nhật thông tin sản phẩm
+ */
 RouterAPI.put("/products/:id", UpdateProductsAPI);
 
+// đánh giá
+/**
+ * @swagger
+ * /feedback:
+ *   post:
+ *     summary: đánh giá 1 sản phẩm
+ *     tags: [Products]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID của sản phẩm
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: đánh giá sản phẩm
+ */
 RouterAPI.post("/feedback", PutFeedbackProductAPI);
+
+// đánh giá
+/**
+ * @swagger
+ * /feedback:
+ *   post:
+ *     summary: đánh giá nhiều sản phẩm
+ *     tags: [Products]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID của sản phẩm
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: đánh giá sản phẩm
+ */
 RouterAPI.post("/feedbacks-products", PutFeedbackProductsAPI);
 
 RouterAPI.post("/like", toggleLikeRatingAPI);
+
+RouterAPI.post(
+  "/products/:productId/ratings/:ratingId/replies",
+  toggleLikeReply
+);
 
 // gender products
 
@@ -127,6 +229,7 @@ RouterAPI.delete("/delete-user/:id", DeleteUser);
 
 // Cart
 RouterAPI.post("/cart", addToCart);
+RouterAPI.post("/cart/add-many", addMultipleToCart);
 RouterAPI.get("/cart/:userId", getCartProduct);
 RouterAPI.put("/cart/:cartId/:itemId", RemoveCartProductfirst);
 RouterAPI.put("/cart-update/:cartId/:itemId", UpdateCartQuantity);
@@ -181,4 +284,10 @@ RouterAPI.put("/veryfy-otp", verifyOTPUser);
 RouterAPI.post("/add-wishlist", addToWishlist);
 RouterAPI.get("/get-wishlist/:userId", getWishlist);
 RouterAPI.post("/remove-wishlist", RemoveToWishList);
+
+// blog
+
+RouterAPI.post("/create-blog", createBlogController);
+RouterAPI.put("/post-view/:slug", updateBlogController);
+
 module.exports = RouterAPI;

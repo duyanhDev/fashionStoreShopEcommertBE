@@ -11,6 +11,7 @@ const {
   toggleLikeRating,
 } = require("./../services/Product");
 const Products = require("./../Model/Product");
+const { json } = require("express");
 
 const AddProductsAPI = async (req, res) => {
   const {
@@ -282,10 +283,14 @@ const UpdateProductsAPI = async (req, res) => {
       costPrice,
     } = req.body;
     const { id } = req.params;
-    console.log("stock", stock);
-    console.log("sold", sold);
 
-    // Lấy thông tin sản phẩm cũ từ database
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm là bắt buộc",
+      });
+    }
+
     const existingProduct = await Products.findById(id);
     if (!existingProduct) {
       return res.status(404).json({
@@ -294,187 +299,212 @@ const UpdateProductsAPI = async (req, res) => {
       });
     }
 
-    // Xử lý size thành mảng
-    const sizeArray = size
-      ? Array.isArray(size)
-        ? size
-        : size.split(",").map((item) => item.trim())
-      : [];
-    const colorArray = color
-      ? Array.isArray(color)
-        ? color
-        : color.split(",").map((item) => item.trim())
-      : [];
+    const parseArray = (input) => {
+      if (!input) return [];
+      return Array.isArray(input)
+        ? input.map((item) => String(item).trim()).filter(Boolean)
+        : String(input)
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+    };
 
-    // Sao chép variants cũ
-    let variants = [...existingProduct.variants];
+    const sizeArray = parseArray(size);
+    const colorArray = parseArray(color);
 
-    // Xử lý hình ảnh và variants nếu có ảnh mới
-    if (req.files && req.files.images) {
+    console.log("Parsed arrays:", { sizeArray, colorArray, stock });
+
+    if (req.files?.images && colorArray.length > 0) {
+      const filesCount = Array.isArray(req.files.images)
+        ? req.files.images.length
+        : 1;
+
+      if (filesCount !== colorArray.length) {
+        return res.status(400).json({
+          success: false,
+          message: `Số lượng ảnh (${filesCount}) phải khớp với số màu (${colorArray.length})`,
+        });
+      }
+    }
+
+    let variants = JSON.parse(JSON.stringify(existingProduct.variants || []));
+
+    const findOrCreateVariant = (color) => {
+      let variant = variants.find((v) => v.color === color);
+      if (!variant) {
+        variant = {
+          color,
+          sizes: [],
+          images: [],
+        };
+        variants.push(variant);
+      }
+      return variant;
+    };
+
+    const updateVariantSizes = (
+      variant,
+      sizesToUpdate,
+      stockValue = 0,
+      isAddStock = false
+    ) => {
+      const existingSizesMap = new Map(variant.sizes.map((s) => [s.size, s]));
+
+      if (sizesToUpdate.length > 0) {
+        sizesToUpdate.forEach((sizeValue) => {
+          if (existingSizesMap.has(sizeValue)) {
+            const existingSize = existingSizesMap.get(sizeValue);
+            existingSize.quantity = isAddStock
+              ? (existingSize.quantity || 0) + Number(stockValue || 0)
+              : Number(stockValue || existingSize.quantity || 0);
+          } else {
+            variant.sizes.push({
+              size: sizeValue,
+              quantity: Number(stockValue || 0),
+              sold: 0,
+            });
+          }
+        });
+      } else if (stockValue !== undefined) {
+        variant.sizes.forEach((sizeObj) => {
+          sizeObj.quantity = isAddStock
+            ? (sizeObj.quantity || 0) + Number(stockValue)
+            : Number(stockValue);
+        });
+      }
+    };
+
+    // ✅ Upload ảnh nếu có
+    if (req.files?.images) {
       try {
         const files = Array.isArray(req.files.images)
           ? req.files.images
           : [req.files.images];
 
-        if (files.length !== colorArray.length) {
-          return res.status(400).json({
-            success: false,
-            message: "Số lượng ảnh phải khớp với số màu mới",
-          });
-        }
-
         for (let i = 0; i < colorArray.length; i++) {
+          const currentColor = colorArray[i];
+          const variant = findOrCreateVariant(currentColor);
+
           const resultImage = await uploadFileToCloudinary(files[i]);
-          const existingVariant = variants.find(
-            (variant) => variant.color === colorArray[i]
-          );
+          variant.images.push({ url: resultImage.secure_url });
 
-          if (existingVariant) {
-            existingVariant.images.push({ url: resultImage.secure_url });
-
-            // Cập nhật sizes mà không trùng lặp
-            const updatedSizes = [];
-            const existingSizesMap = new Map(
-              existingVariant.sizes.map((s) => [s.size, s])
-            );
-
-            sizeArray.forEach((size) => {
-              if (existingSizesMap.has(size)) {
-                // Nếu size đã tồn tại, giữ nguyên quantity và sold cũ, chỉ cập nhật nếu có thay đổi
-                const existingSize = existingSizesMap.get(size);
-                updatedSizes.push({
-                  size,
-                  quantity: existingSize.quantity || stock,
-                  sold: existingSize.sold || 0, // Giữ nguyên sold cũ, không cập nhật từ req.body
-                });
-              } else {
-                // Nếu size mới, thêm mới với quantity và sold
-                updatedSizes.push({
-                  size,
-                  quantity: stock,
-                  sold: 0, // Giá trị sold mặc định cho size mới
-                });
-              }
-            });
-
-            existingVariant.sizes = updatedSizes;
-          } else {
-            const newVariant = {
-              color: colorArray[i],
-              sizes: sizeArray.map((size) => ({
-                size,
-                quantity: stock,
-                sold: 0, // Giá trị sold mặc định cho variant mới
-              })),
-              images: [{ url: resultImage.secure_url }],
-            };
-            variants.push(newVariant);
+          if (sizeArray.length > 0) {
+            updateVariantSizes(variant, sizeArray, stock, false);
           }
         }
       } catch (uploadError) {
-        console.error("Lỗi khi tải lên hình ảnh:", uploadError.message);
+        console.error("Lỗi khi tải lên hình ảnh:", uploadError);
         return res.status(500).json({
           success: false,
-          message: "Lỗi khi tải lên hình ảnh",
-        });
-      }
-    } else if (sizeArray.length > 0) {
-      // Nếu không có ảnh mới nhưng có size mới, cập nhật sizes cho variant "black"
-      const blackVariantIndex = variants.findIndex(
-        (variant) => variant.color === "đen"
-      );
-
-      if (blackVariantIndex !== -1) {
-        // Cập nhật sizes cho variant "black" mà không trùng lặp
-        const updatedSizes = [];
-        const existingSizesMap = new Map(
-          variants[blackVariantIndex].sizes.map((s) => [s.size, s])
-        );
-
-        sizeArray.forEach((size) => {
-          if (existingSizesMap.has(size)) {
-            // Nếu size đã tồn tại, giữ nguyên sold cũ, chỉ cập nhật quantity
-            const existingSize = existingSizesMap.get(size);
-            updatedSizes.push({
-              size,
-              quantity: stock || existingSize.quantity,
-              sold: existingSize.sold || 0,
-            });
-          } else {
-            // Nếu size mới, thêm mới với quantity và sold
-            updatedSizes.push({
-              size,
-              quantity: stock,
-              sold: 0, // Giá trị sold mặc định cho size mới
-            });
-          }
-        });
-
-        variants[blackVariantIndex].sizes = updatedSizes;
-      } else if (sizeArray.length > 0) {
-        // Nếu không tìm thấy variant "black" và có size mới, thêm variant "black"
-        variants.push({
-          color: "đen",
-          sizes: sizeArray.map((size) => ({
-            size,
-            quantity: stock,
-            sold: 0,
-          })),
-          images: existingProduct.variants.find((v) => v.images.length > 0)
-            ?.images || [{ url: "default-image-url" }],
+          message: "Lỗi khi tải lên hình ảnh: " + uploadError.message,
         });
       }
     }
 
-    // Phân bổ giá trị sold từ req.body cho tất cả sizes trong variants (nếu cần)
+    // ✅ Trường hợp cộng thêm stock vào size/color cụ thể
+    if (!req.files?.images && sizeArray.length > 0 && colorArray.length > 0) {
+      colorArray.forEach((currentColor) => {
+        const variant = findOrCreateVariant(currentColor);
+        updateVariantSizes(variant, sizeArray, stock, true); // ✅ cộng thêm
+      });
+    }
+
+    // ✅ Nếu chỉ có size (không màu) => cập nhật tất cả variants
+    if (!req.files?.images && colorArray.length === 0 && sizeArray.length > 0) {
+      variants.forEach((variant) => {
+        updateVariantSizes(variant, sizeArray, stock, false);
+      });
+    }
+
+    // ✅ Nếu chỉ có stock → cộng thêm cho tất cả
+    if (
+      stock !== undefined &&
+      sizeArray.length === 0 &&
+      colorArray.length === 0
+    ) {
+      variants.forEach((variant) => {
+        updateVariantSizes(variant, [], stock, true);
+      });
+    }
+
+    // ✅ Cập nhật sold nếu có
     if (sold !== undefined && variants.length > 0) {
       const totalSizes = variants.reduce(
         (acc, variant) => acc + variant.sizes.length,
         0
       );
-      const soldPerSize =
-        totalSizes > 0 ? Math.floor(Number(sold) / totalSizes) : 0;
+      if (totalSizes > 0) {
+        const soldPerSize = Math.floor(Number(sold) / totalSizes);
+        let remainingSold = Number(sold) - soldPerSize * totalSizes;
 
-      variants.forEach((variant) => {
-        variant.sizes.forEach((sizeObj) => {
-          sizeObj.sold = soldPerSize; // Phân bổ sold đều cho từng size
+        variants.forEach((variant) => {
+          variant.sizes.forEach((sizeObj, index) => {
+            sizeObj.sold =
+              soldPerSize +
+              (remainingSold > 0 && index === 0 ? remainingSold : 0);
+            if (index === 0) remainingSold = 0;
+          });
         });
-      });
+      }
     }
-
-    console.log(variants.sizes);
 
     const totalStock = variants.reduce(
       (acc, variant) =>
-        acc + variant.sizes.reduce((sum, sz) => sum + (sz.quantity || 0), 0),
+        acc +
+        variant.sizes.reduce(
+          (sum, sizeObj) => sum + (sizeObj.quantity || 0),
+          0
+        ),
       0
     );
-    // Tính toán giá sau giảm giá
-    const finalCostPrice = price || existingProduct.price;
-    const finalDiscount = discount || existingProduct.discount;
-    const discountedPrice = finalCostPrice * (1 - finalDiscount / 100);
 
-    // Tạo object chứa các trường cần update
-    const updateFields = {
-      name: name || existingProduct.name,
-      gender: gender || existingProduct.gender,
-      description: description || existingProduct.description,
-      category: category || existingProduct.category,
-      brand: brand || existingProduct.brand,
-      care: care || existingProduct.care,
-      price: price ? Number(price) : existingProduct.price,
-      discount: finalDiscount,
-      stock: totalStock,
-      sold: sold ? Number(sold) : existingProduct.sold,
-      costPrice: costPrice ? Number(costPrice) : existingProduct.costPrice,
-      discountedPrice,
-      variants,
-    };
+    const totalSold = variants.reduce(
+      (acc, variant) =>
+        acc +
+        variant.sizes.reduce((sum, sizeObj) => sum + (sizeObj.sold || 0), 0),
+      0
+    );
 
-    // Update sản phẩm
+    const finalPrice =
+      price !== undefined ? Number(price) : existingProduct.price;
+    const finalDiscount =
+      discount !== undefined ? Number(discount) : existingProduct.discount;
+    const discountedPrice = finalPrice * (1 - finalDiscount / 100);
+
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (gender !== undefined) updateFields.gender = gender;
+    if (description !== undefined) updateFields.description = description;
+    if (category !== undefined) updateFields.category = category;
+    if (brand !== undefined) updateFields.brand = brand;
+    if (care !== undefined) updateFields.care = care;
+    if (price !== undefined) updateFields.price = finalPrice;
+    if (discount !== undefined) updateFields.discount = finalDiscount;
+    if (costPrice !== undefined) updateFields.costPrice = Number(costPrice);
+
+    updateFields.stock = totalStock;
+    updateFields.sold = sold !== undefined ? Number(sold) : totalSold;
+    updateFields.discountedPrice = discountedPrice;
+    updateFields.variants = variants;
+    updateFields.updatedAt = new Date();
+
+    console.log("Update fields:", {
+      stock: updateFields.stock,
+      sold: updateFields.sold,
+      variantsCount: variants.length,
+    });
+
     const updatedProduct = await Products.findByIdAndUpdate(id, updateFields, {
       new: true,
+      runValidators: true,
     });
+
+    if (!updatedProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "Không thể cập nhật sản phẩm",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -482,10 +512,11 @@ const UpdateProductsAPI = async (req, res) => {
       message: "Cập nhật sản phẩm thành công",
     });
   } catch (error) {
-    console.error("Lỗi cập nhật sản phẩm:", error.message);
+    console.error("Lỗi cập nhật sản phẩm:", error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi khi cập nhật sản phẩm",
+      message: "Lỗi server khi cập nhật sản phẩm",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -656,6 +687,40 @@ const CategoryGenderFitterAPI = async (req, res) => {
     });
   }
 };
+
+// phản hồi đánh giá của admin
+
+const toggleLikeReply = async (req, res) => {
+  const { productId, ratingId } = req.params;
+  const { userId, content } = req.body;
+
+  console.log(userId, content);
+
+  try {
+    const product = await Products.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    const rating = product.ratings.id(ratingId);
+    if (!rating) return res.status(404).json({ message: "Rating not found" });
+
+    const check = true;
+    rating.replies.push({ userId, content, check });
+
+    await product.save();
+
+    return (
+      res.status(200),
+      json({
+        EC: 0,
+        message: "Phản hồi thành công",
+      })
+    );
+  } catch (error) {
+    return res.status(500).json({
+      message: "Lỗi server",
+    });
+  }
+};
+
 module.exports = {
   AddProductsAPI,
   ListProductsAPI,
@@ -666,4 +731,5 @@ module.exports = {
   CategoryGenderAPI,
   CategoryGenderFitterAPI,
   toggleLikeRatingAPI,
+  toggleLikeReply,
 };

@@ -50,7 +50,12 @@ const orderSchema = new mongoose.Schema({
     default: "Processing",
   },
   active: { type: Boolean, default: true },
-  idDiscount: { type: String },
+  idDiscount: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Voucher",
+    default: null,
+  },
+  order_code: { type: String },
   totalAmount: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
