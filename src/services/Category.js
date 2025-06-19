@@ -4,7 +4,6 @@ const AddCategory = async (name, description) => {
   try {
     const existingCategory = await Category.findOne({ name });
     if (existingCategory) {
-      console.log("Danh mục đã tồn tại");
       return;
     }
 

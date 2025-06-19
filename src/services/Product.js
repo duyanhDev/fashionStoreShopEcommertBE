@@ -127,7 +127,6 @@ const PutFeedbackProducts = async (ids, userId, rating, review, images) => {
     }
 
     const objectIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
-    console.log("ObjectIds đã convert:", objectIds);
 
     // Kiểm tra sản phẩm có tồn tại không
     const existingProducts = await Products.find({ _id: { $in: objectIds } });
@@ -203,8 +202,6 @@ const ProductFilter = async ({
   try {
     const perPage = 20;
     const skip = (page - 1) * perPage;
-
-    console.log("xxx", color);
 
     // Tạo bộ lọc
     const filter = {};

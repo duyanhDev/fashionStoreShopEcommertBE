@@ -1,17 +1,14 @@
+require("dotenv").config(); // Fix: gọi config() để load env
 const jwt = require("jsonwebtoken");
 const Users = require("../Model/User");
-require("dotenv").config(); // Fix: gọi config() để load env
 
 const authMiddleware = async (req, res, next) => {
-  console.log("JWT_SECRET từ env:", process.env.JWT_SECRET);
-
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ message: "Không có token trong request" });
   }
 
   const token = authHeader.split(" ")[1]; // Lấy token từ "Bearer <token>"
-  console.log("Token:", token);
 
   if (!token) {
     return res.status(401).json({ message: "Token bị thiếu" });

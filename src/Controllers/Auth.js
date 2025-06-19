@@ -18,18 +18,13 @@ const RegisterUserAPI = async (req, res) => {
     if (req.files && req.files.avatar) {
       const files = req.files.avatar;
 
-      console.log(files);
-
       let result = await uploadFileToCloudinary(files);
       if (result && result.length > 0) {
         avatarUrl = result[0].secure_url; // Lấy secure_url từ object đầu tiên
-        console.log("Avatar URL:", avatarUrl);
       } else {
         throw new Error("No result from Cloudinary");
       }
     }
-
-    console.log(avatarUrl);
 
     const dataUser = await RegisterUser(
       name,
@@ -161,7 +156,6 @@ const UpDateProfileUserAPI = async (req, res) => {
 const ChanglePasswordAPI = async (req, res) => {
   try {
     const { id, currentPassword, newPassword } = req.body;
-    console.log(id, currentPassword, newPassword);
 
     if (!id || !currentPassword || !newPassword) {
       return res.status(400).json({ error: "Thiếu thông tin cần thiết" });
@@ -176,7 +170,6 @@ const ChanglePasswordAPI = async (req, res) => {
     // so sánh mật khẩu cũ
 
     const isMatch = await user.comparePassword(currentPassword);
-    console.log(isMatch);
 
     if (!isMatch) {
       return res.status(400).json({

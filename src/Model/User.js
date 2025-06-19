@@ -30,6 +30,7 @@ const UserSchema = new mongoose.Schema(
     },
     otp: { type: String },
     otpExpires: { type: Date },
+    facebookId: { type: String, unique: true, sparse: true },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updatedAt" } }
 );
