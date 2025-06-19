@@ -25,7 +25,7 @@ router.get(
 
     // Chuyển hướng về frontend với token
     res.redirect(
-      `https://fashionstoreshopecommertbe.onrender.com/auth/callback?token=${token}`
+      `https://fashion-store-shop-ecommert.vercel.app/auth/callback?token=${token}`
     );
   }
 );
