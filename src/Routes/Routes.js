@@ -11,6 +11,7 @@ const {
   CategoryGenderFitterAPI,
   toggleLikeRatingAPI,
   toggleLikeReply,
+  ListSlugProductAPI,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -129,6 +130,8 @@ RouterAPI.post("/products", AddProductsAPI);
  *         description: Thông tin sản phẩm
  */
 RouterAPI.get("/products/:id", ListOneProductAPI);
+
+RouterAPI.get("/products-slug/:slug", ListSlugProductAPI);
 
 /**
  * @swagger
@@ -292,4 +295,5 @@ RouterAPI.put("/post-view/:slug", updateBlogController);
 
 RouterAPI.post("/ChatAI", BotChatAPI);
 RouterAPI.post("/genminiAi", handleGeminiRequest);
+
 module.exports = RouterAPI;

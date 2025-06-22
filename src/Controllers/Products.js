@@ -9,110 +9,95 @@ const {
   ProductFilter,
   CategoryGenderFitter,
   toggleLikeRating,
+  ListOneSlugProducts,
 } = require("./../services/Product");
 const Products = require("./../Model/Product");
 const { json } = require("express");
 
 const AddProductsAPI = async (req, res) => {
-  const {
-    name,
-    gender,
-    description,
-    category,
-    brand,
-    care,
-    price,
-    discount,
-    stock,
-    size,
-    color,
-    costPrice,
-  } = req.body;
-
-  // Parse sizes and colors into arrays
-  const sizeArray = Array.isArray(size)
-    ? size
-    : size.split(",").map((item) => item.trim());
-  const colorArray = Array.isArray(color)
-    ? color
-    : color.split(",").map((item) => item.trim());
-
-  // Upload images and associate them with colors
-  let variants = [];
-
-  if (req.files && req.files.images) {
-    try {
-      const files = Array.isArray(req.files.images)
-        ? req.files.images
-        : [req.files.images];
-
-      // Ensure the number of colors matches the number of uploaded images
-      if (files.length !== colorArray.length) {
-        return res.status(400).json({
-          success: false,
-          message: "Số lượng ảnh phải khớp với số lượng màu sắc",
-        });
-      }
-
-      // Upload all images at once using uploadFileToCloudinary
-      const resultImages = await uploadFileToCloudinary(files);
-
-      // Process each color and its associated image
-      for (let i = 0; i < colorArray.length; i++) {
-        const result = resultImages[i]; // Lấy kết quả tương ứng
-        if (!result || !result.secure_url) {
-          throw new Error(`Không thể tải lên ảnh cho màu ${colorArray[i]}`);
-        }
-
-        const variant = {
-          color: colorArray[i],
-          sizes: sizeArray.map((size) => ({
-            size,
-            quantity: stock,
-            sold: 0,
-          })),
-          images: [{ url: result.secure_url }],
-        };
-        variants.push(variant);
-      }
-    } catch (uploadError) {
-      console.error("Lỗi khi tải ảnh lên Cloudinary:", uploadError.message);
-      return res
-        .status(500)
-        .json({ success: false, message: "Lỗi khi tải ảnh lên Cloudinary" });
-    }
-  }
-  const totalStock = variants.reduce(
-    (acc, variant) =>
-      acc + variant.sizes.reduce((sum, sz) => sum + (sz.quantity || 0), 0),
-    0
-  );
-  const productData = {
-    name,
-    gender,
-    description,
-    category,
-    brand,
-    care,
-    price,
-    discount,
-    totalStock,
-    variants,
-    costPrice,
-  };
-
   try {
-    const data = await AddProducts(productData);
+    const {
+      name,
+      gender,
+      description,
+      category,
+      brand,
+      care,
+      price,
+      discount,
+      costPrice,
+    } = req.body;
+
+    // Parse variants
+    const variantsInput = JSON.parse(req.body.variantsInput || "[]");
+
+    // Xử lý ảnh
+    const files = Array.isArray(req.files?.images)
+      ? req.files.images
+      : req.files?.images
+      ? [req.files.images]
+      : [];
+
+    if (files.length !== variantsInput.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Số ảnh và số biến thể (màu sắc) không khớp.",
+      });
+    }
+
+    const resultImages = await uploadFileToCloudinary(files);
+
+    // Gán ảnh vào từng biến thể theo thứ tự
+    let variants = [];
+    let totalStock = 0;
+
+    for (let i = 0; i < variantsInput.length; i++) {
+      const inputVariant = variantsInput[i];
+      const image = resultImages[i];
+
+      const sizes = inputVariant.sizes.map((sz) => {
+        totalStock += sz.quantity;
+        return {
+          size: sz.size,
+          quantity: sz.quantity,
+          sold: 0,
+        };
+      });
+
+      variants.push({
+        color: inputVariant.color,
+        sizes,
+        images: [{ url: image.secure_url }],
+      });
+    }
+
+    const productData = {
+      name,
+      gender,
+      description,
+      category,
+      brand,
+      care,
+      price,
+      discount,
+      costPrice,
+      stock: totalStock,
+      variants,
+    };
+
+    const saved = await AddProducts(productData); // hoặc dùng Product.create(productData)
+
     return res.status(200).json({
       EC: 0,
-      data: data,
+      data: saved,
       message: "Thêm sản phẩm thành công",
     });
-  } catch (error) {
-    console.error("Lỗi khi thêm sản phẩm:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, message: "Lỗi khi thêm sản phẩm" });
+  } catch (err) {
+    console.error("Lỗi khi thêm sản phẩm:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi khi thêm sản phẩm",
+    });
   }
 };
 
@@ -136,6 +121,25 @@ const ListOneProductAPI = async (req, res) => {
     const { id } = req.params;
 
     const data = await ListOneProducts(id);
+
+    return res.status(201).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.error("Error list product:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error adding product" });
+  }
+};
+
+const ListSlugProductAPI = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    console.log(slug);
+
+    const data = await ListOneSlugProducts(slug);
 
     return res.status(201).json({
       EC: 0,
@@ -494,10 +498,14 @@ const UpdateProductsAPI = async (req, res) => {
       variantsCount: variants.length,
     });
 
-    const updatedProduct = await Products.findByIdAndUpdate(id, updateFields, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedProduct = await Products.findOneAndUpdate(
+      { _id: id },
+      updateFields,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!updatedProduct) {
       return res.status(404).json({
@@ -725,6 +733,7 @@ module.exports = {
   AddProductsAPI,
   ListProductsAPI,
   ListOneProductAPI,
+  ListSlugProductAPI,
   UpdateProductsAPI,
   PutFeedbackProductAPI,
   PutFeedbackProductsAPI,

@@ -56,6 +56,22 @@ const ListOneProducts = async (id) => {
   }
 };
 
+const ListOneSlugProducts = async (slug) => {
+  try {
+    const data = await Products.findOne({ slug: slug }) // ✅ Đúng
+      .populate("category", "name")
+      .populate({
+        path: "ratings.userId",
+        select: "name avatar",
+      });
+
+    return data;
+  } catch (error) {
+    console.log("list products error:", error);
+    throw error;
+  }
+};
+
 const UpdateProducts = async (productData) => {
   try {
     const updateData = await Products.findByIdAndUpdate(
@@ -373,6 +389,7 @@ module.exports = {
   AddProducts,
   ListProducts,
   ListOneProducts,
+  ListOneSlugProducts,
   UpdateProducts,
   PutFeedbackProduct,
   PutFeedbackProducts,
