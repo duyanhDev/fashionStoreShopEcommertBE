@@ -8,9 +8,6 @@ const {
 // Gửi tin nhắn từ khách hàng  đến admin
 const sendMessageCutomerAPI = async (req, res) => {
   try {
-    console.log("Request Body:", req.body);
-    console.log("Uploaded Files:", req.files);
-
     const { sender, content, isAdminChat } = req.body;
 
     if (!content?.trim()) {
@@ -61,9 +58,6 @@ const sendMessageCutomerAPI = async (req, res) => {
 // / Gửi tin nhắn từ admin đến khách hàng
 const sendMessageToAdminAPI = async (req, res) => {
   try {
-    console.log("Request Body:", req.body);
-    console.log("Uploaded Files:", req.files);
-
     const { sender, recipient, content } = req.body;
 
     if (!content?.trim()) {
@@ -201,7 +195,6 @@ const UpdateStatusIsRead = async (req, res) => {
     if (!sender || !recipient) {
       return res.status(400).json({ message: "Missing sender or recipient" });
     }
-    console.log(sender, recipient);
 
     // Cập nhật tất cả tin nhắn từ sender tới recipient
     const result = await Message.updateMany(
@@ -213,8 +206,6 @@ const UpdateStatusIsRead = async (req, res) => {
     if (result.modifiedCount === 0) {
       return res.status(404).json({ message: "No unread messages found" });
     }
-
-    console.log(result.modifiedCount);
 
     // Trả về phản hồi thành công
     res.status(200).json({
@@ -231,7 +222,6 @@ const getMessagesSenderList = async (req, res) => {
   try {
     const { sender } = req.params;
 
-    console.log(sender);
     // sender là userId của người dùng hiện tại
     if (!sender) {
       return res.status(400).json({

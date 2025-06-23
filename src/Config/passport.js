@@ -3,8 +3,6 @@ const Users = require("./../Model/User");
 require("dotenv").config(); // Fix: added parentheses to call the function
 
 const configurePassport = (passport) => {
-  console.log("Google Client ID:", process.env.GOOGLE_CLIENT_ID);
-
   passport.use(
     new GoogleStrategy(
       {
@@ -13,8 +11,6 @@ const configurePassport = (passport) => {
         callbackURL: process.env.CALLBACK_URL,
       },
       async (accessToken, refreshToken, profile, done) => {
-        console.log(profile);
-
         try {
           let user = await Users.findOne({ email: profile.emails[0].value });
           if (!user) {
@@ -42,7 +38,7 @@ const configurePassport = (passport) => {
   passport.deserializeUser(async (id, done) => {
     try {
       const user = await Users.findById(id);
-      console.log("Deserialized user:", user ? user.id : "not found");
+
       done(null, user);
     } catch (err) {
       console.error("Deserialize error:", err);

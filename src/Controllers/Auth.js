@@ -107,6 +107,8 @@ const UpDateProfileUserAPI = async (req, res) => {
 
     const avatar = req.files?.avatar;
 
+    console.log("avtar", avatar);
+
     // Tìm người dùng
     const UpdateUser = await Users.findById(id);
 
