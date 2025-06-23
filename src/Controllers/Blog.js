@@ -11,7 +11,7 @@ const createBlogController = async (req, res) => {
       author: req.body.author,
       files: req.files.img,
     });
-    console.log("check", req.files.img);
+    console.log("check", blog);
 
     res.status(201).json({ message: "Tạo blog thành công", blog });
   } catch (err) {

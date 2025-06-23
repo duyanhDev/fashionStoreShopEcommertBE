@@ -1,8 +1,47 @@
+<<<<<<< HEAD
+=======
+const { jsonrepair } = require("jsonrepair");
+
+>>>>>>> 5c36c70 (deloy be 24/6)
 const { GoogleGenAI } = require("@google/genai");
 require("dotenv").config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+<<<<<<< HEAD
+=======
+
+// Hàm xử lý phản hồi Gemini và làm sạch JSON
+function extractCleanJSON(text) {
+  // Trích xuất JSON từ block code (nếu có)
+  const match =
+    text.match(/```json\s*([\s\S]*?)```/) || text.match(/```([\s\S]*?)```/);
+  let jsonText = match ? match[1] : text;
+
+  // Làm sạch các dấu ngoặc cong
+  jsonText = jsonText.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+
+  // Xoá các ký tự điều khiển không hợp lệ (ngoại trừ \n \t \r)
+  jsonText = jsonText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // Sửa lỗi thiếu dấu phẩy trước key mới bằng regex (không hoàn hảo 100%)
+  jsonText = jsonText.replace(
+    /"([a-zA-Z0-9_]+)"\s*:\s*"([^"]+)"\s*"([a-zA-Z0-9_]+)"\s*:/g,
+    (_, key1, val1, key2) => {
+      return `"${key1}": "${val1}", "${key2}":`;
+    }
+  );
+
+  // Xoá dấu phẩy cuối object/array
+  jsonText = jsonText.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+
+  return jsonText.trim();
+}
+function cleanMarkdown(content = "") {
+  return content.replace(/\*\*(.*?)\*\*/g, "$1"); // Xoá **bold**
+}
+
+>>>>>>> 5c36c70 (deloy be 24/6)
 const handleGeminiRequest = async (req, res) => {
   const { message } = req.body;
 
@@ -41,4 +80,70 @@ const handleGeminiRequest = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 module.exports = { handleGeminiRequest };
+=======
+const generateBlogByGemini = async (req, res) => {
+  const { topic, keywords, audience } = req.body;
+
+  if (!topic || !keywords || !audience) {
+    return res.status(400).json({ error: "Vui lòng nhập đầy đủ thông tin." });
+  }
+
+  const prompt = `
+Viết một bài blog thời trang với các yêu cầu sau:
+- Chủ đề: ${topic}
+- Từ khóa: ${keywords}
+- Đối tượng: ${audience}
+
+Chỉ xuất JSON thuần với cấu trúc:
+{
+  "title": "Tiêu đề bài viết",
+  "tip": "Một mẹo ngắn mở đầu bài viết",
+  "content": "Nội dung chính của blog, độ dài khoảng 300 từ"
+}
+Không giải thích gì thêm, không bao markdown như \`\`\`json\`\`\`, không in đậm **bold**.
+Trả lời bằng tiếng Việt.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-001",
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+    });
+
+    const text = response.candidates[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      return res.status(500).json({ error: "Không có phản hồi từ Gemini." });
+    }
+
+    console.log("📄 Raw Gemini:", text);
+
+    // Dùng jsonrepair để tự động sửa lỗi format
+    const repairedJSON = jsonrepair(text);
+    const parsed = JSON.parse(repairedJSON);
+
+    // Làm sạch markdown nếu Gemini vẫn còn dùng
+    parsed.content = cleanMarkdown(parsed.content);
+
+    return res.status(200).json({
+      message: "Tạo blog thành công từ Gemini",
+      blog: parsed,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi parse JSON từ Gemini:", err.message);
+    return res.status(500).json({
+      error: "Không thể xử lý JSON trả về từ Gemini.",
+      raw: err.message,
+    });
+  }
+};
+
+module.exports = { handleGeminiRequest, generateBlogByGemini };
+>>>>>>> 5c36c70 (deloy be 24/6)
