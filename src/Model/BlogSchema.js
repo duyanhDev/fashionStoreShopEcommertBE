@@ -32,10 +32,21 @@ const blogSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    author: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Users",
       required: true,
+    },
+    readTime: {
+      type: String,
+    },
+    featured: {
+      type: Boolean,
+      default: false,
+    },
+    isApproved: {
+      type: Boolean,
+      default: false,
     },
   },
   {

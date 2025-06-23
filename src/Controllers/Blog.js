@@ -1,4 +1,4 @@
-const { CreateBlog, updateBlogView } = require("../services/Blog");
+const { CreateBlog, updateBlogView, getAllBlog } = require("../services/Blog");
 
 const createBlogController = async (req, res) => {
   try {
@@ -8,8 +8,10 @@ const createBlogController = async (req, res) => {
       content: req.body.content,
       slug: req.body.slug,
       regex: req.body.regex,
-      author: req.body.author,
+      userId: req.body.userId,
       files: req.files.img,
+      readTime: req.body.readTime,
+      featured: req.body.featured,
     });
     console.log("check", blog);
 
@@ -30,7 +32,21 @@ const updateBlogController = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+const getAllBlogController = async (req, res) => {
+  try {
+    const data = await getAllBlog();
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 module.exports = {
   createBlogController,
   updateBlogController,
+  getAllBlogController,
 };

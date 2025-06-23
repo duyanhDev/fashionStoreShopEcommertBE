@@ -1,20 +1,34 @@
 const BlogModel = require("./../Model/BlogSchema");
 const { uploadFileToCloudinary } = require("./../services/Cloudinary");
 const slugify = require("slugify");
+
+const getAllBlog = async () => {
+  try {
+    const data = await BlogModel.find({})
+      .sort({ createdAt: -1 })
+      .populate("userId")
+      .exec(); // Lấy thông tin tác giả (nếu có populate)
+
+    return data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 const CreateBlog = async ({
   title,
   tip,
   content,
   slug,
   regex,
-  author,
+  userId,
   files,
+  readTime,
+  featured,
 }) => {
-  if (!title || !tip || !content || !regex || !author) {
+  if (!title || !tip || !content || !regex || !userId) {
     throw new Error("Không truyền đủ tham số");
   }
-
-  console.log("xxx", files);
 
   const randomSuffix = Math.floor(1000 + Math.random() * 9000); // ví dụ: 5765
   const slugTilte =
@@ -48,7 +62,9 @@ const CreateBlog = async ({
     slug: slugTilte,
     regex,
     img: imageUrls,
-    author,
+    userId,
+    readTime,
+    featured,
   });
 
   await newBlog.save();
@@ -75,4 +91,5 @@ const updateBlogView = async (slug) => {
 module.exports = {
   CreateBlog,
   updateBlogView,
+  getAllBlog,
 };

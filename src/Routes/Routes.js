@@ -83,6 +83,7 @@ const {
 const {
   createBlogController,
   updateBlogController,
+  getAllBlogController,
 } = require("../Controllers/Blog");
 const {
   handleGeminiRequest,
@@ -295,6 +296,7 @@ RouterAPI.post("/remove-wishlist", RemoveToWishList);
 
 RouterAPI.post("/create-blog", createBlogController);
 RouterAPI.put("/post-view/:slug", updateBlogController);
+RouterAPI.get("/all-blog", getAllBlogController);
 
 RouterAPI.post("/ChatAI", BotChatAPI);
 RouterAPI.post("/genminiAi", handleGeminiRequest);
