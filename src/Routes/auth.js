@@ -22,6 +22,7 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
+    console.log("xxx");
 
     // Chuyển hướng về frontend với token
     res.redirect(
