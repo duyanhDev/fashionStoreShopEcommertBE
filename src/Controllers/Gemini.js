@@ -1,15 +1,10 @@
-<<<<<<< HEAD
-=======
 const { jsonrepair } = require("jsonrepair");
 
->>>>>>> 5c36c70 (deloy be 24/6)
 const { GoogleGenAI } = require("@google/genai");
 require("dotenv").config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-<<<<<<< HEAD
-=======
 
 // Hàm xử lý phản hồi Gemini và làm sạch JSON
 function extractCleanJSON(text) {
@@ -41,7 +36,6 @@ function cleanMarkdown(content = "") {
   return content.replace(/\*\*(.*?)\*\*/g, "$1"); // Xoá **bold**
 }
 
->>>>>>> 5c36c70 (deloy be 24/6)
 const handleGeminiRequest = async (req, res) => {
   const { message } = req.body;
 
@@ -80,9 +74,6 @@ const handleGeminiRequest = async (req, res) => {
   }
 };
 
-<<<<<<< HEAD
-module.exports = { handleGeminiRequest };
-=======
 const generateBlogByGemini = async (req, res) => {
   const { topic, keywords, audience } = req.body;
 
@@ -146,4 +137,3 @@ Trả lời bằng tiếng Việt.
 };
 
 module.exports = { handleGeminiRequest, generateBlogByGemini };
->>>>>>> 5c36c70 (deloy be 24/6)
