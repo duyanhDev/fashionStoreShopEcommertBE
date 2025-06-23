@@ -24,7 +24,9 @@ router.get(
     });
 
     // Chuyển hướng về frontend với token
-    res.redirect(`http://localhost:5173/auth/callback?token=${token}`);
+    res.redirect(
+      `https://fashion-store-shop-ecommert.vercel.app/?token=${token}`
+    );
   }
 );
 
