@@ -174,7 +174,7 @@ app.set("io", io);
 //   req.io = io;
 //   next();
 // });
-console.log("xxx");
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
