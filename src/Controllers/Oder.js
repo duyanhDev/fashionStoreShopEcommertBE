@@ -871,7 +871,7 @@ const getOrderOneProduct = async (req, res) => {
 
     const data = await Order.findOne({ _id: id }).populate({
       path: "items.productId",
-      select: "name variants.images discountedPrice",
+      select: "name variants.images discountedPrice slug",
     });
     return res.status(200).json({
       EC: 0,
