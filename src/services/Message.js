@@ -2,7 +2,7 @@ const Users = require("../Model/User");
 const Message = require("../Model/Message");
 
 // Helper function to create and save a message
-const createMessage = async (sender, recipient, content, image, role) => {
+const createMessage = async (sender, recipient, content, images, role) => {
   if (!sender) {
     throw new Error("Sender is required");
   }
@@ -11,7 +11,7 @@ const createMessage = async (sender, recipient, content, image, role) => {
     sender,
     recipient,
     content,
-    image,
+    images,
     role,
   });
 
@@ -19,7 +19,7 @@ const createMessage = async (sender, recipient, content, image, role) => {
 };
 
 // Gửi tin nhắn từ admin đến khách hàng
-const sendMessageToCustomer = async (sender, recipient, content, image) => {
+const sendMessageToCustomer = async (sender, recipient, content, images) => {
   // Validate message content
   if (!content || content.trim() === "") {
     throw new Error("Message content cannot be empty");
@@ -33,11 +33,11 @@ const sendMessageToCustomer = async (sender, recipient, content, image) => {
   }
 
   // Create the message and return the saved message
-  return createMessage(sender, recipient, content, image, "admin");
+  return createMessage(sender, recipient, content, images, "admin");
 };
 
 // Gửi tin nhắn từ khách hàng đến admin
-const sendMessageToAdmin = async (sender, content, image) => {
+const sendMessageToAdmin = async (sender, content, images) => {
   console.log("sendMessageToAdmin: sender is Customer, recipient is Admin");
 
   // Validate message content
@@ -54,7 +54,7 @@ const sendMessageToAdmin = async (sender, content, image) => {
 
   // Create messages for all admins and save them
   const messages = recipients.map((admin) =>
-    createMessage(sender, admin._id, content, image, "customer")
+    createMessage(sender, admin._id, content, images, "customer")
   );
 
   // Save all messages and return the saved messages
