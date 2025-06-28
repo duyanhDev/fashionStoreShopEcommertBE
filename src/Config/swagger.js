@@ -8,7 +8,7 @@ const options = {
       version: "1.0.0",
       description: "API documentation for your backend",
     },
-    servers: [{ url: "http://localhost:9000" }],
+    servers: [{ url: "https://fashionstoreshopecommertbe.onrender.com" }],
   },
   apis: [__dirname + "/../Routes/Routes.js"], // ✅ Chính xác
 };

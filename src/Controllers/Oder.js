@@ -32,7 +32,12 @@ const CreateOrder = async (req, res) => {
       discountValue,
       idDiscount,
       order_code,
+      idItems,
     } = req.body;
+
+    console.log(productId);
+
+    console.log(idItems);
 
     if (!userId || !items || !paymentMethod || !shippingAddress) {
       return res
@@ -184,7 +189,7 @@ const CreateOrder = async (req, res) => {
       throw new Error("Sản phẩm không có trong giỏ hàng");
     }
 
-    const idsToDelete = productId; // productId là mảng các _id cần xóa
+    const idsToDelete = idItems; // productId là mảng các _id cần xóa
 
     // Sử dụng $pull để xóa các phần tử trong mảng items
 
@@ -269,7 +274,7 @@ const CreateOrder = async (req, res) => {
 
         // Tạo embed_data
         const embed_data = {
-          redirecturl: "https://fashionstoreshopecommertbe.onrender.com",
+          redirecturl: "http://localhost:5173/",
           merchantinfo: "Doisin Store",
           promotioninfo: "",
           redirectdata: "",
@@ -324,8 +329,9 @@ const CreateOrder = async (req, res) => {
 
         let resultCart = await Cart.updateOne(
           { _id: CartId },
-          { $pull: { items: { productId: { $in: idsToDelete } } } }
+          { $pull: { items: { _id: { $in: idsToDelete } } } }
         );
+        console.log(resultCart.modifiedCount);
 
         if (resultCart.modifiedCount > 0) {
           console.log(
@@ -407,7 +413,7 @@ const CreateOrder = async (req, res) => {
       })}`;
       let resultCart = await Cart.updateOne(
         { _id: CartId },
-        { $pull: { items: { productId: { $in: idsToDelete } } } }
+        { $pull: { items: { _id: { $in: idsToDelete } } } }
       );
 
       if (resultCart.modifiedCount > 0) {
@@ -426,7 +432,7 @@ const CreateOrder = async (req, res) => {
     } else if (paymentMethod === "cod") {
       let resultCart = await Cart.updateOne(
         { _id: CartId },
-        { $pull: { items: { productId: { $in: idsToDelete } } } }
+        { $pull: { items: { _id: { $in: idsToDelete } } } }
       );
 
       if (resultCart.modifiedCount > 0) {
@@ -447,10 +453,8 @@ const CreateOrder = async (req, res) => {
       const secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
       const orderInfo = "pay with MoMo";
       const partnerCode = "MOMO";
-      const redirectUrl =
-        "https://fashionstoreshopecommertbe.onrender.com/vnpay_return";
-      const ipnUrl =
-        "https://fashionstoreshopecommertbe.onrender.com/vnpay_return";
+      const redirectUrl = "http://localhost:5173/vnpay_return";
+      const ipnUrl = "http://localhost:5173/vnpay_return";
       const requestType = "payWithMethod";
       const amount = totalAmount;
       const orderId = partnerCode + new Date().getTime(); // Generate a unique order ID
@@ -501,7 +505,7 @@ const CreateOrder = async (req, res) => {
 
         let resultCart = await Cart.updateOne(
           { _id: CartId },
-          { $pull: { items: { productId: { $in: idsToDelete } } } }
+          { $pull: { items: { _id: { $in: idsToDelete } } } }
         );
 
         if (resultCart.modifiedCount > 0) {
