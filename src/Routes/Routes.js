@@ -60,6 +60,8 @@ const { BotChatAPI } = require("../Controllers/BotChatApi");
 const {
   getNotificationsAPI,
   updateReadNocatifionsAPI,
+  AllReadNotificationsAPI,
+  DeleteAllNotificationsAPI,
 } = require("../Controllers/Notifications");
 
 /// mess
@@ -262,6 +264,8 @@ RouterAPI.post("/filter-order/:status", filterOrdersByStatus);
 
 RouterAPI.get("/notification/:userId", getNotificationsAPI);
 RouterAPI.post("/notification/:id", updateReadNocatifionsAPI);
+RouterAPI.put("/update-notification", AllReadNotificationsAPI);
+RouterAPI.delete("/delete-notifications/:userId", DeleteAllNotificationsAPI);
 
 // search
 
