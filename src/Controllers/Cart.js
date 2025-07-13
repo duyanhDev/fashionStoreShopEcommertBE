@@ -158,14 +158,9 @@ const getCartProduct = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Kiểm tra userId có phải là ObjectId hợp lệ không
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid userId" });
-    }
-
-    const cart = await Cart.findOne({ userId }).populate({
+    let cart = await Cart.findOne({ userId }).populate({
       path: "items.productId",
-      select: "name variants.images",
+      select: "name variants.images variants.color",
     });
 
     if (!cart) {
@@ -177,7 +172,7 @@ const getCartProduct = async (req, res) => {
       data: cart,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy giỏ hàng:", error);
+    console.error(error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
