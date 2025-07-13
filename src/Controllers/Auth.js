@@ -13,16 +13,19 @@ const RegisterUserAPI = async (req, res) => {
   try {
     const { name, email, password, isAdmin } = req.body;
 
-    let avatarUrl = ""; // Thay đổi từ 'const' sang 'let'
+    let avatarUrl = "";
 
     if (req.files && req.files.avatar) {
       const files = req.files.avatar;
+      const result = await uploadFileToCloudinary(files);
 
-      let result = await uploadFileToCloudinary(files);
       if (result && result.length > 0) {
-        avatarUrl = result[0].secure_url; // Lấy secure_url từ object đầu tiên
+        avatarUrl = result[0].secure_url;
       } else {
-        throw new Error("No result from Cloudinary");
+        return res.status(400).json({
+          EC: 1,
+          EM: "Không thể tải ảnh lên Cloudinary",
+        });
       }
     }
 
@@ -33,12 +36,26 @@ const RegisterUserAPI = async (req, res) => {
       isAdmin,
       avatarUrl
     );
+
+    // Trường hợp email đã tồn tại
+    if (!dataUser.success) {
+      return res.status(400).json({
+        EC: 1,
+        EM: dataUser.message,
+      });
+    }
+
     return res.status(200).json({
       EC: 0,
-      data: dataUser,
+      EM: "Đăng ký thành công",
+      data: dataUser.user,
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({
+      EC: -1,
+      EM: "Lỗi máy chủ",
+    });
   }
 };
 

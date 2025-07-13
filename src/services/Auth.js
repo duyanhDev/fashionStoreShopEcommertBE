@@ -13,22 +13,30 @@ let transporter = nodemailer.createTransport({
   },
 });
 
+// RegisterUser.js
 const RegisterUser = async (name, email, password, isAdmin = false, avatar) => {
   try {
-    // Kiểm tra email đã tồn tại hay chưa
     const existingUser = await Users.findOne({ email });
+    console.log(existingUser);
     if (existingUser) {
-      throw new Error("Email đã tồn tại");
+      return {
+        success: false,
+        message: "Email đã tồn tại",
+      };
     }
 
-    // Tạo người dùng mới
     const newUser = new Users({ name, email, password, isAdmin, avatar });
+    await newUser.save();
 
-    // Lưu vào cơ sở dữ liệu
-    return await newUser.save();
+    return {
+      success: true,
+      user: newUser,
+    };
   } catch (error) {
-    // Trả lỗi để xử lý bên ngoài
-    throw error;
+    return {
+      success: false,
+      message: error.message,
+    };
   }
 };
 
