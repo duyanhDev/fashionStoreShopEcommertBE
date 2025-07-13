@@ -158,11 +158,15 @@ const getCartProduct = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    let cart = await Cart.findOne({ userId }).populate({
+    // Kiểm tra userId có phải là ObjectId hợp lệ không
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+
+    const cart = await Cart.findOne({ userId }).populate({
       path: "items.productId",
       select: "name variants.images",
     });
-    console.log(cart);
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -173,7 +177,7 @@ const getCartProduct = async (req, res) => {
       data: cart,
     });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Lỗi khi lấy giỏ hàng:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
