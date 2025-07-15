@@ -120,6 +120,7 @@ const UpDateProfileUserAPI = async (req, res) => {
       height,
       weight,
       role,
+      permissions,
     } = req.body;
 
     const avatar = req.files?.avatar;
@@ -145,6 +146,7 @@ const UpDateProfileUserAPI = async (req, res) => {
       height: height || UpdateUser.height,
       weight: weight || UpdateUser.weight,
       role: role || UpdateUser.role,
+      permissions: permissions || UpdateUser.permissions,
     };
 
     // Nếu có avatar mới

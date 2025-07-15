@@ -19,7 +19,16 @@ const UserSchema = new mongoose.Schema(
     weight: { type: Number },
     totalPrice: { type: Number },
     isAdmin: { type: Boolean, default: false },
-    role: { type: String, enum: ["admin", "customer"], default: "customer" },
+    role: {
+      type: String,
+      enum: ["admin", "customer", "staff"],
+      default: "customer",
+    },
+    permissions: {
+      type: String,
+      enum: ["order_approval", "customer_support"],
+    },
+
     cart: [{ type: mongoose.Schema.Types.ObjectId, ref: "Cart" }],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
     orders: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }],

@@ -11,7 +11,7 @@ const moment = require("moment");
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 const axios = require("axios");
-
+const Transaction = require("../Model/transactionSchema");
 const config = {
   app_id: "554",
   key1: "8NdU5pG5R2spGHGhyO99HN1OhD8IQJBn",
@@ -788,6 +788,15 @@ const UpDateCompleted = async (req, res) => {
       message: `Đơn hàng của bạn đã được shop giao bên vận chuyển thành công: ${nameProduct.join(
         ", "
       )}`,
+    });
+
+    await Transaction.create({
+      orderId: order._id,
+      userId: order.userId,
+      orderCode: order.order_code,
+      totalAmount: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
     });
     // Phản hồi API thành công
     return res.status(200).json({

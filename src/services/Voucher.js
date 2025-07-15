@@ -23,14 +23,27 @@ const addVoucher = async (voucherData) => {
 // xem tất cả voucer
 const listVoucher = async () => {
   try {
-    let data = await Voucher.find({});
+    let data = await Voucher.find({}).sort({ createdAt: -1 });
     return data;
   } catch (error) {
     console.log("Error fetching vouchers:", error);
     return [];
   }
 };
+
+// xem chi tiết 1 voucher
+
+const getListOneVoucher = async (id) => {
+  try {
+    const data = await Voucher.findById(id);
+    return data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 module.exports = {
   addVoucher,
   listVoucher,
+  getListOneVoucher,
 };

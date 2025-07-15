@@ -1,4 +1,9 @@
-const { addVoucher, listVoucher } = require("../services/Voucher");
+const Voucher = require("../Model/Voucher");
+const {
+  addVoucher,
+  listVoucher,
+  getListOneVoucher,
+} = require("../services/Voucher");
 
 const addVoucherAPI = async (req, res) => {
   try {
@@ -89,7 +94,71 @@ const listVoucherAPI = async (req, res) => {
     });
   }
 };
+
+const getListOneVoucherAPI = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = await getListOneVoucher(id);
+
+    return res.status(201).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+// Cập nhật voucher
+const updateVoucher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(id);
+
+    console.log(req.body);
+
+    // Các trường không được cập nhật
+    const blockedFields = ["code", "usedCount", "appliedUsers", "user"];
+    for (let field of blockedFields) {
+      if (field in req.body) {
+        return res
+          .status(400)
+          .json({ message: `Không được cập nhật trường '${field}'` });
+      }
+    }
+
+    // Lọc bỏ các trường có giá trị null
+    const updateData = {};
+    for (const [key, value] of Object.entries(req.body.formdata)) {
+      if (value !== null && value !== undefined) {
+        updateData[key] = value;
+      }
+    }
+    console.log(updateData);
+
+    const updatedVoucher = await Voucher.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedVoucher) {
+      return res.status(404).json({ message: "Voucher không tồn tại" });
+    }
+
+    res.status(200).json({
+      EC: 0,
+      message: "Cập nhật voucher thành công",
+      data: updatedVoucher,
+    });
+  } catch (error) {
+    console.error("Lỗi cập nhật voucher:", error);
+    res.status(500).json({ EC: 1, message: "Lỗi server", error });
+  }
+};
 module.exports = {
   addVoucherAPI,
   listVoucherAPI,
+  getListOneVoucherAPI,
+  updateVoucher,
 };

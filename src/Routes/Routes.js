@@ -1,4 +1,7 @@
 const express = require("express");
+const verifyToken = require("../Middlewares/auth");
+const checkPermission = require("../Middlewares/checkPermission");
+const isAdmin = require("../Middlewares/isAdmin");
 const RouterAPI = express.Router();
 const {
   AddProductsAPI,
@@ -75,7 +78,12 @@ const {
   getMessagesSenderList,
 } = require("./../Controllers/MessageChat");
 
-const { addVoucherAPI, listVoucherAPI } = require("../Controllers/Voucher");
+const {
+  addVoucherAPI,
+  listVoucherAPI,
+  getListOneVoucherAPI,
+  updateVoucher,
+} = require("../Controllers/Voucher");
 const { RefreshToken } = require("../services/Auth");
 const {
   addToWishlist,
@@ -116,7 +124,7 @@ RouterAPI.get("/products", ListProductsAPI);
  *         description: Tạo sản phẩm thành công
  */
 
-RouterAPI.post("/products", AddProductsAPI);
+RouterAPI.post("/products", verifyToken, isAdmin, AddProductsAPI);
 
 /**
  * @swagger
@@ -156,7 +164,7 @@ RouterAPI.get("/products-slug/:slug", ListSlugProductAPI);
  *       200:
  *         description: Cập nhật thông tin sản phẩm
  */
-RouterAPI.put("/products/:id", UpdateProductsAPI);
+RouterAPI.put("/products/:id", verifyToken, isAdmin, UpdateProductsAPI);
 
 // đánh giá
 /**
@@ -215,15 +223,15 @@ RouterAPI.get(
 
 // Category
 
-RouterAPI.post("/category", CreateCategoryAPI);
+RouterAPI.post("/category", verifyToken, isAdmin, CreateCategoryAPI);
 
 RouterAPI.get("/category", ListCategoryAPI);
 
 RouterAPI.get("/category/:id", ListCategoryOneAPI);
 
-RouterAPI.put("/category/:id", UpdateOneCatogryAPI);
+RouterAPI.put("/category/:id", verifyToken, isAdmin, UpdateOneCatogryAPI);
 
-RouterAPI.delete("/category/:id", DeleteOneCategoryAPI);
+RouterAPI.delete("/category/:id", verifyToken, isAdmin, DeleteOneCategoryAPI);
 
 // Auth
 
@@ -284,7 +292,8 @@ RouterAPI.get("/get-list-sender/:sender", getMessagesSenderList);
 
 RouterAPI.post("/add-voucher", addVoucherAPI);
 RouterAPI.get("/voucher", listVoucherAPI);
-
+RouterAPI.get("/voucher/:id", getListOneVoucherAPI);
+RouterAPI.put("/update-voucher/:id", updateVoucher);
 // otp
 
 RouterAPI.post("/otp", SendverifyFileOTPUser);
