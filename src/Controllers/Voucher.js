@@ -16,6 +16,20 @@ const addVoucherAPI = async (req, res) => {
       content,
     } = req.body;
 
+    console.log(
+      code,
+      discountType,
+      discountValue,
+      minOrderValue,
+      startDate,
+      endDate,
+      usageLimit,
+      user,
+      appliedUsers,
+      userGroup,
+      content
+    );
+
     if (!code || !discountType || !discountValue || !startDate || !endDate) {
       return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc" });
     }
@@ -49,6 +63,7 @@ const addVoucherAPI = async (req, res) => {
 
     return res.status(201).json({
       message: "Thêm voucher thành công",
+      EC: 0,
       voucher: newVoucher,
     });
   } catch (error) {

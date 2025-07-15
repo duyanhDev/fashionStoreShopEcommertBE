@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Order = require("./../Model/Order");
 const Users = require("./../Model/User");
 const Product = require("../Model/Product");
@@ -34,10 +35,6 @@ const CreateOrder = async (req, res) => {
       order_code,
       idItems,
     } = req.body;
-
-    console.log(productId);
-
-    console.log(idItems);
 
     if (!userId || !items || !paymentMethod || !shippingAddress) {
       return res
@@ -189,7 +186,7 @@ const CreateOrder = async (req, res) => {
       throw new Error("Sản phẩm không có trong giỏ hàng");
     }
 
-    const idsToDelete = idItems; // productId là mảng các _id cần xóa
+    const idsToDelete = idItems.map((id) => new mongoose.Types.ObjectId(id)); // Đảm bảo là ObjectId
 
     // Sử dụng $pull để xóa các phần tử trong mảng items
 
@@ -211,31 +208,32 @@ const CreateOrder = async (req, res) => {
 
     const admins = await Users.find({ role: "admin" });
     // trừ mã giảm giá
-    const idVoucher = idDiscount;
+    if (idDiscount) {
+      const idVoucher = idDiscount;
+      // Lấy voucher hiện tại để lấy usageLimit
+      if (idVoucher) {
+        const voucher = await Voucher.findById(idVoucher);
 
-    // Lấy voucher hiện tại để lấy usageLimit
-    if (idVoucher) {
-      const voucher = await Voucher.findById(idVoucher);
+        // Cập nhật usageLimit và usedCount
+        voucher.usageLimit -= 1;
+        voucher.usedCount += 1;
+        // Kiểm tra xem user đã nằm trong appliedUsers chưa
+        const existingUser = voucher.appliedUsers.find(
+          (u) => u.user.toString() === userId.toString()
+        );
 
-      // Cập nhật usageLimit và usedCount
-      voucher.usageLimit -= 1;
-      voucher.usedCount += 1;
-      // Kiểm tra xem user đã nằm trong appliedUsers chưa
-      const existingUser = voucher.appliedUsers.find(
-        (u) => u.user.toString() === userId.toString()
-      );
+        if (existingUser) {
+          existingUser.usedCount += 1;
+        } else {
+          voucher.appliedUsers.push({
+            user: userId,
+            usedCount: 1,
+          });
+        }
 
-      if (existingUser) {
-        existingUser.usedCount += 1;
-      } else {
-        voucher.appliedUsers.push({
-          user: userId,
-          usedCount: 1,
-        });
+        // Lưu thay đổi
+        await voucher.save();
       }
-
-      // Lưu thay đổi
-      await voucher.save();
     }
 
     await userNotification.save();
@@ -331,6 +329,7 @@ const CreateOrder = async (req, res) => {
           { _id: CartId },
           { $pull: { items: { _id: { $in: idsToDelete } } } }
         );
+
         console.log(resultCart.modifiedCount);
 
         if (resultCart.modifiedCount > 0) {

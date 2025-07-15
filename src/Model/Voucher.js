@@ -67,5 +67,14 @@ const voucherSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+voucherSchema.pre(/^find/, async function (next) {
+  // Cập nhật tất cả voucher hết hạn thành status: false
+  await this.model.updateMany(
+    { endDate: { $lt: new Date() }, status: true },
+    { $set: { status: false } }
+  );
+  next();
+});
+
 const Voucher = mongoose.model("Voucher", voucherSchema);
 module.exports = Voucher;
