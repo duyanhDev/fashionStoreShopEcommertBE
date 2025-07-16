@@ -236,14 +236,23 @@ RouterAPI.delete("/category/:id", verifyToken, isAdmin, DeleteOneCategoryAPI);
 // Auth
 
 RouterAPI.post("/register", RegisterUserAPI);
+RouterAPI.post("/register-admin", verifyToken, isAdmin, RegisterUserAPI);
 RouterAPI.post("/login", LoginUserAPI);
 RouterAPI.get("/users", ListUserAPI);
 RouterAPI.get("/profile-users", ListOneUserAPI);
+// cập nhật profile cho user
 RouterAPI.put("/updateProfile", UpDateProfileUserAPI);
+// cập nhật profile admin
+RouterAPI.put(
+  "/updateProfile-admin",
+  verifyToken,
+  isAdmin,
+  UpDateProfileUserAPI
+);
 RouterAPI.put("/changel-passsword", ChanglePasswordAPI);
 RouterAPI.post("/forgetpassword", Forgotpassword);
 RouterAPI.post("/refresh-token", RefreshToken);
-RouterAPI.delete("/delete-user/:id", DeleteUser);
+RouterAPI.delete("/delete-user/:id", verifyToken, isAdmin, DeleteUser);
 
 // Cart
 RouterAPI.post("/cart", addToCart);
@@ -254,12 +263,35 @@ RouterAPI.put("/cart-update/:cartId/:itemId", UpdateCartQuantity);
 // oders
 RouterAPI.post("/order", CreateOrder);
 RouterAPI.get("/order/:userId", listOderUserId);
-RouterAPI.put("/order/:id", UpDateOrder);
 RouterAPI.get("/get-total-products-sold", getTotalProductsSoldByType);
 RouterAPI.get("/get-quantity-all", getTotalProductsSold);
-RouterAPI.post("/check-orderShipping", UpDateDelivered);
-RouterAPI.post("/check-orderCompleted", UpDateCompleted);
-RouterAPI.put("/update-order/:id", UpDateOrderStatus); // cập nhật trạng thái đơn hàng
+RouterAPI.put(
+  "/order/:id",
+  verifyToken,
+  checkPermission("order_approval"),
+  UpDateOrder
+); // duyệt đơn hàng
+RouterAPI.post(
+  "/check-orderShipping",
+  verifyToken,
+  checkPermission("order_approval"),
+  UpDateDelivered
+);
+RouterAPI.post(
+  "/check-orderCompleted",
+  verifyToken,
+  checkPermission("order_approval"),
+  UpDateCompleted
+);
+RouterAPI.put("/update-order/:id", UpDateOrderStatus); // cập nhật trạng thái đơn hàng order_approval
+
+RouterAPI.put(
+  "/update-order-admin/:id",
+  verifyToken,
+  checkPermission("order_approval"),
+  UpDateOrderStatus
+); // cập nhật trạng thái đơn hàng order_approval
+
 // all hóa đơn thanh toán order
 RouterAPI.get("/get-order-all", ListOderProducts);
 RouterAPI.get("/get-order-one/:id", getOrderOneProduct);
@@ -282,7 +314,12 @@ RouterAPI.get("/search/:page", searchProductsByNameAPI);
 /// chat
 
 RouterAPI.post("/customer/send", sendMessageCutomerAPI);
-RouterAPI.post("/admin/send", sendMessageToAdminAPI);
+RouterAPI.post(
+  "/admin/send",
+  verifyToken, // Phải xác thực trước
+  checkPermission("customer_support"),
+  sendMessageToAdminAPI
+);
 RouterAPI.get("/message", getMessages);
 RouterAPI.get("/message/all-users", getMessagesList);
 RouterAPI.post("/update-isread", UpdateStatusIsRead);
@@ -290,12 +327,12 @@ RouterAPI.get("/get-list-sender/:sender", getMessagesSenderList);
 
 // Voucher
 
-RouterAPI.post("/add-voucher", addVoucherAPI);
+RouterAPI.post("/add-voucher", verifyToken, isAdmin, addVoucherAPI);
 RouterAPI.get("/voucher", listVoucherAPI);
 RouterAPI.get("/voucher/:id", getListOneVoucherAPI);
-RouterAPI.put("/update-voucher/:id", updateVoucher);
-// otp
+RouterAPI.put("/update-voucher/:id", verifyToken, isAdmin, updateVoucher);
 
+// otp
 RouterAPI.post("/otp", SendverifyFileOTPUser);
 RouterAPI.put("/veryfy-otp", verifyOTPUser);
 
