@@ -15,6 +15,7 @@ const {
   toggleLikeRatingAPI,
   toggleLikeReply,
   ListSlugProductAPI,
+  AddProductsFromExcelAPI,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -125,6 +126,9 @@ RouterAPI.get("/products", ListProductsAPI);
  */
 
 RouterAPI.post("/products", verifyToken, isAdmin, AddProductsAPI);
+
+// thêm sản phẩm mới bằng execl
+RouterAPI.post("/products/excel", AddProductsFromExcelAPI);
 
 /**
  * @swagger

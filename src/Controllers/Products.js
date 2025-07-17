@@ -11,8 +11,19 @@ const {
   toggleLikeRating,
   ListOneSlugProducts,
 } = require("./../services/Product");
+const XLSX = require("xlsx");
+const fs = require("fs");
+const path = require("path");
 const Products = require("./../Model/Product");
 const { json } = require("express");
+const cloudinary = require("cloudinary").v2;
+require("dotenv").config();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 const AddProductsAPI = async (req, res) => {
   try {
@@ -729,6 +740,313 @@ const toggleLikeReply = async (req, res) => {
   }
 };
 
+const AddProductsFromExcelAPI = async (req, res) => {
+  try {
+    const file = req.files.execl;
+    console.log(file);
+
+    if (!file) {
+      return res.status(400).json({ message: "Chưa upload file Excel." });
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res
+        .status(400)
+        .json({ message: "File không đúng định dạng Excel." });
+    }
+
+    // Tạo thư mục nếu chưa có
+    const uploadDir = path.join(__dirname, "../Uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    // Lưu file tạm thời
+    const filePath = path.join(uploadDir, file.name);
+    await file.mv(filePath);
+
+    // Đọc file Excel
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    if (!sheetData || sheetData.length === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ message: "File Excel không có dữ liệu." });
+    }
+
+    let productsToAdd = [];
+    const imageUploadPromises = [];
+    const imageUrlMap = new Map(); // Cache uploaded images
+
+    // Helper function to upload image to Cloudinary
+    const uploadImageToCloudinary = async (imageURL, productName, color) => {
+      try {
+        if (!imageURL || imageURL.trim() === "") return null;
+
+        // Check if image already uploaded
+        if (imageUrlMap.has(imageURL)) {
+          return imageUrlMap.get(imageURL);
+        }
+
+        const sanitizePublicId = (str) =>
+          str
+            .toString()
+            .normalize("NFD") // loại bỏ dấu tiếng Việt
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9-_]/g, "_"); // chỉ giữ chữ, số, - và _
+
+        const result = await cloudinary.uploader.upload(imageURL, {
+          folder: "products",
+          public_id: sanitizePublicId(`${productName}_${color}_${Date.now()}`),
+          transformation: [
+            { width: 800, height: 800, crop: "fill" },
+            { quality: "auto" },
+          ],
+        });
+
+        const cloudinaryUrl = result.secure_url;
+        imageUrlMap.set(imageURL, cloudinaryUrl);
+        return cloudinaryUrl;
+      } catch (error) {
+        console.error(`Lỗi upload ảnh ${imageURL}:`, error);
+        return null;
+      }
+    };
+
+    // Process Excel data
+    for (let row of sheetData) {
+      // Validate required fields
+      if (!row.name || !row.category || !row.brand || !row.price) {
+        console.warn(`Bỏ qua dòng thiếu thông tin: ${JSON.stringify(row)}`);
+        continue;
+      }
+
+      // Validate data types
+      const quantity = parseInt(row.quantity) || 0;
+      const price = parseFloat(row.price) || 0;
+      const discount = parseFloat(row.discount) || 0;
+      const costPrice = parseFloat(row.costPrice) || 0;
+
+      if (quantity < 0 || price <= 0) {
+        console.warn(
+          `Bỏ qua dòng có dữ liệu không hợp lệ: ${JSON.stringify(row)}`
+        );
+        continue;
+      }
+
+      const existingProduct = productsToAdd.find((p) => p.name === row.name);
+
+      if (!existingProduct) {
+        // Create new product
+        const newProduct = {
+          name: row.name.trim(),
+          gender: row.gender || "",
+          description: row.description || "",
+          category: row.category,
+          brand: row.brand,
+          care: row.care || "",
+          price: price,
+          discount: discount,
+          costPrice: costPrice,
+          stock: quantity,
+          variants: [
+            {
+              color: row.color || "default",
+              sizes: [
+                {
+                  size: row.size || "default",
+                  quantity: quantity,
+                  sold: 0,
+                },
+              ],
+              images: [], // Will be populated after image upload
+              imageURL: row.imageURL, // Temporary field for processing
+            },
+          ],
+        };
+
+        productsToAdd.push(newProduct);
+
+        // Add image upload promise
+        if (row.imageURL) {
+          imageUploadPromises.push(
+            uploadImageToCloudinary(
+              row.imageURL,
+              row.name,
+              row.color || "default"
+            ).then((cloudinaryUrl) => ({
+              productName: row.name,
+              color: row.color || "default",
+              originalUrl: row.imageURL,
+              cloudinaryUrl: cloudinaryUrl,
+            }))
+          );
+        }
+      } else {
+        // Update existing product
+        let variant = existingProduct.variants.find(
+          (v) => v.color === (row.color || "default")
+        );
+
+        if (!variant) {
+          // Add new variant
+          const newVariant = {
+            color: row.color || "default",
+            sizes: [
+              {
+                size: row.size || "default",
+                quantity: quantity,
+                sold: 0,
+              },
+            ],
+            images: [], // Will be populated after image upload
+            imageURL: row.imageURL, // Temporary field for processing
+          };
+
+          existingProduct.variants.push(newVariant);
+
+          // Add image upload promise
+          if (row.imageURL) {
+            imageUploadPromises.push(
+              uploadImageToCloudinary(
+                row.imageURL,
+                row.name,
+                row.color || "default"
+              ).then((cloudinaryUrl) => ({
+                productName: row.name,
+                color: row.color || "default",
+                originalUrl: row.imageURL,
+                cloudinaryUrl: cloudinaryUrl,
+              }))
+            );
+          }
+        } else {
+          // Add size to existing variant
+          variant.sizes.push({
+            size: row.size || "default",
+            quantity: quantity,
+            sold: 0,
+          });
+
+          // Add image if variant doesn't have one and row has imageURL
+          if (!variant.imageURL && row.imageURL) {
+            variant.imageURL = row.imageURL;
+            imageUploadPromises.push(
+              uploadImageToCloudinary(
+                row.imageURL,
+                row.name,
+                row.color || "default"
+              ).then((cloudinaryUrl) => ({
+                productName: row.name,
+                color: row.color || "default",
+                originalUrl: row.imageURL,
+                cloudinaryUrl: cloudinaryUrl,
+              }))
+            );
+          }
+        }
+
+        existingProduct.stock += quantity;
+      }
+    }
+
+    // Wait for all image uploads to complete
+    console.log(
+      `Uploading ${imageUploadPromises.length} images to Cloudinary...`
+    );
+    const uploadResults = await Promise.all(imageUploadPromises);
+
+    // Update products with Cloudinary URLs
+    uploadResults.forEach((result) => {
+      if (result && result.cloudinaryUrl) {
+        const product = productsToAdd.find(
+          (p) => p.name === result.productName
+        );
+        if (product) {
+          const variant = product.variants.find(
+            (v) => v.color === result.color
+          );
+          if (variant) {
+            variant.images = [{ url: result.cloudinaryUrl }];
+            delete variant.imageURL; // Remove temporary field
+          }
+        }
+      }
+    });
+
+    // Clean up temporary imageURL fields
+    productsToAdd.forEach((product) => {
+      product.variants.forEach((variant) => {
+        delete variant.imageURL;
+        if (variant.images.length === 0) {
+          variant.images = []; // Ensure empty array if no image
+        }
+      });
+    });
+
+    // Add timestamps
+    const now = new Date();
+    productsToAdd.forEach((product) => {
+      product.createdAt = now;
+      product.updatedAt = now;
+    });
+
+    // Thêm sản phẩm vào DB
+    const createdProducts = [];
+    for (const productData of productsToAdd) {
+      const product = new Products(productData);
+      await product.save();
+      createdProducts.push(product);
+    }
+
+    // Xóa file Excel sau khi xử lý
+    fs.unlinkSync(filePath);
+
+    return res.status(201).json({
+      EC: 0,
+      message: "Thêm sản phẩm từ Excel thành công",
+      data: {
+        totalProducts: createdProducts.length,
+        totalVariants: createdProducts.reduce(
+          (sum, p) => sum + p.variants.length,
+          0
+        ),
+        totalImagesUploaded: uploadResults.filter((r) => r && r.cloudinaryUrl)
+          .length,
+        products: createdProducts,
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi khi thêm sản phẩm từ Excel:", err);
+
+    // Clean up file if it exists
+    try {
+      const filePath = path.join(
+        __dirname,
+        "../Uploads",
+        req.files?.execl?.name
+      );
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupErr) {
+      console.error("Lỗi khi xóa file:", cleanupErr);
+    }
+
+    return res.status(500).json({
+      message: "Lỗi server",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
 module.exports = {
   AddProductsAPI,
   ListProductsAPI,
@@ -741,4 +1059,5 @@ module.exports = {
   CategoryGenderFitterAPI,
   toggleLikeRatingAPI,
   toggleLikeReply,
+  AddProductsFromExcelAPI,
 };
