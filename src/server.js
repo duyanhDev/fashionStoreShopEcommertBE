@@ -35,7 +35,7 @@ app.use(
       "https://fashion-store-shop-ecommert.vercel.app", // Xóa dấu `/` ở cuối
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-requested-with"], // thêm x-requested-with vào đây
     credentials: true,
   })
 );

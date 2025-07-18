@@ -1,17 +1,29 @@
 const { uploadFileToCloudinary } = require("./../services/Cloudinary");
-const {
-  RegisterUser,
-  LoginUser,
-  SendverifyFileOTP,
-  verifyOTP,
-} = require("./../services/Auth");
+const { RegisterUser, LoginUser } = require("./../services/Auth");
 const Users = require("./../Model/User");
 const nodemailer = require("nodemailer");
 require("dotenv").config;
 
+const transporter = nodemailer.createTransport({
+  service: "Gmail",
+  auth: {
+    user: "dangtrinhduyanh100202@gmail.com",
+    pass: "qfmc zizc ppdg ldjg",
+  },
+});
 const RegisterUserAPI = async (req, res) => {
   try {
     const { name, email, password, isAdmin } = req.body;
+
+    const startsWithUppercase = /^[A-Z]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!startsWithUppercase || !hasSpecialChar) {
+      return res.status(400).json({
+        EC: 1,
+        EM: "Mật khẩu phải bắt đầu bằng chữ in hoa và chứa ít nhất một ký tự đặc biệt",
+      });
+    }
 
     let avatarUrl = "";
 
@@ -281,39 +293,66 @@ const Forgotpassword = async (req, res) => {
 
 // gửi mã otp
 
-const SendverifyFileOTPUser = async (req, res) => {
-  let { email } = req.body;
-  if (!email) {
-    throw new Error("Email không tồn tại");
+// đăng ký
+
+const otpStore = {}; // { email: { otp, expires } }
+
+const sendOTP = async (req, res) => {
+  const { email } = req.body;
+
+  // Kiểm tra email đã tồn tại chưa
+  const isEmail = await Users.findOne({ email: email });
+  if (isEmail) {
+    return res.status(400).json({
+      EC: 1,
+      EM: "Email đã tồn tại",
+    });
   }
-  const user = await SendverifyFileOTP(email);
 
-  return res.status(200).json({
-    EC: 0,
-    data: user.otp,
-  });
-};
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 chữ số
 
-const verifyOTPUser = async (req, res) => {
+  // Lưu OTP kèm thời gian hết hạn
+  otpStore[email] = {
+    otp,
+    expires: Date.now() + 5 * 60 * 1000, // 5 phút
+  };
+
   try {
-    let { email, otp } = req.body;
-    console.log(email, otp);
-
-    const result = await verifyOTP(email, otp); // Nhận object { success, message }
-    console.log(result);
+    await transporter.sendMail({
+      from: `"Duy Anh Shop" <your-email@gmail.com>`, // ghi đúng định dạng from
+      to: email,
+      subject: "Mã OTP xác thực tài khoản",
+      text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
+    });
 
     return res.status(200).json({
-      success: result.success,
-      message: result.message,
-      data: result.success ? email : null, // Trả về email nếu OTP đúng
+      EC: 0,
+      EM: "Đã gửi OTP thành công",
     });
   } catch (error) {
+    console.error("Lỗi gửi OTP:", error);
     return res.status(500).json({
-      success: false,
-      message: "Lỗi server",
-      error: error.message,
+      EC: -1,
+      EM: "Lỗi khi gửi OTP",
     });
   }
+};
+
+const verifyOTPAndRegister = async (req, res) => {
+  const { email, otp } = req.body;
+  console.log(req);
+
+  const record = otpStore[email];
+  console.log(record);
+
+  if (!record || record.otp !== otp || Date.now() > record.expires) {
+    return res
+      .status(400)
+      .json({ EC: 1, EM: "OTP không hợp lệ hoặc đã hết hạn" });
+  }
+
+  delete otpStore[email]; // xoá OTP sau khi xác thực
+  return await RegisterUserAPI(req, res); // gọi hàm tạo tài khoản
 };
 
 const DeleteUser = async (req, res) => {
@@ -339,7 +378,7 @@ module.exports = {
   UpDateProfileUserAPI,
   ChanglePasswordAPI,
   Forgotpassword,
-  SendverifyFileOTPUser,
-  verifyOTPUser,
   DeleteUser,
+  sendOTP,
+  verifyOTPAndRegister,
 };

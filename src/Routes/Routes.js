@@ -33,9 +33,9 @@ const {
   UpDateProfileUserAPI,
   Forgotpassword,
   ChanglePasswordAPI,
-  SendverifyFileOTPUser,
-  verifyOTPUser,
   DeleteUser,
+  sendOTP,
+  verifyOTPAndRegister,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -128,7 +128,12 @@ RouterAPI.get("/products", ListProductsAPI);
 RouterAPI.post("/products", verifyToken, isAdmin, AddProductsAPI);
 
 // thêm sản phẩm mới bằng execl
-RouterAPI.post("/products/excel", AddProductsFromExcelAPI);
+RouterAPI.post(
+  "/products/excel",
+  verifyToken,
+  isAdmin,
+  AddProductsFromExcelAPI
+);
 
 /**
  * @swagger
@@ -336,9 +341,8 @@ RouterAPI.get("/voucher", listVoucherAPI);
 RouterAPI.get("/voucher/:id", getListOneVoucherAPI);
 RouterAPI.put("/update-voucher/:id", verifyToken, isAdmin, updateVoucher);
 
-// otp
-RouterAPI.post("/otp", SendverifyFileOTPUser);
-RouterAPI.put("/veryfy-otp", verifyOTPUser);
+RouterAPI.post("/send-otp", sendOTP);
+RouterAPI.post("/verify-otp", verifyOTPAndRegister);
 
 // danh sách yêu thích
 
