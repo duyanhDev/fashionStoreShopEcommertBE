@@ -217,10 +217,7 @@ RouterAPI.post("/feedbacks-products", PutFeedbackProductsAPI);
 
 RouterAPI.post("/like", toggleLikeRatingAPI);
 
-RouterAPI.post(
-  "/products/:productId/ratings/:ratingId/replies",
-  toggleLikeReply
-);
+RouterAPI.post("/products/replies", toggleLikeReply);
 
 // gender products
 

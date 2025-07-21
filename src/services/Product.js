@@ -43,12 +43,37 @@ const ListProducts = async () => {
 const ListOneProducts = async (id) => {
   try {
     const data = await Products.findOne({ _id: id })
+
       .populate("category", "name")
       .populate({
-        path: "ratings.userId", // Lấy thông tin userId trong ratings
-        select: "name avatar", // Chỉ lấy trường name từ model Users
+        path: "ratings",
+        populate: [
+          {
+            path: "userId",
+            select: "name avatar",
+          },
+          {
+            path: "replies",
+            populate: [
+              {
+                path: "userId",
+                select: "name avatar",
+              },
+              {
+                path: "replies",
+                populate: {
+                  path: "userId",
+                  select: "name avatar",
+                },
+              },
+            ],
+          },
+        ],
       });
-
+    console.log(
+      "xx",
+      data.ratings[0].replies[0].userId // → Nếu vẫn là ObjectId thì populate chưa đúng
+    );
     return data;
   } catch (error) {
     console.log("list products error:", error);
@@ -58,13 +83,34 @@ const ListOneProducts = async (id) => {
 
 const ListOneSlugProducts = async (slug) => {
   try {
-    const data = await Products.findOne({ slug: slug }) // ✅ Đúng
+    const data = await Products.findOne({ slug: slug })
       .populate("category", "name")
       .populate({
-        path: "ratings.userId",
-        select: "name avatar",
+        path: "ratings",
+        populate: [
+          {
+            path: "userId",
+            select: "name avatar",
+          },
+          {
+            path: "replies",
+            populate: {
+              path: "userId",
+              select: "name avatar",
+            },
+          },
+          {
+            path: "replies",
+            populate: {
+              path: "replies",
+              populate: {
+                path: "userId",
+                select: "name avatar",
+              },
+            },
+          },
+        ],
       });
-
     return data;
   } catch (error) {
     console.log("list products error:", error);

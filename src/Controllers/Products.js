@@ -148,7 +148,6 @@ const ListOneProductAPI = async (req, res) => {
 const ListSlugProductAPI = async (req, res) => {
   try {
     const { slug } = req.params;
-    console.log(slug);
 
     const data = await ListOneSlugProducts(slug);
 
@@ -710,10 +709,11 @@ const CategoryGenderFitterAPI = async (req, res) => {
 // phản hồi đánh giá của admin
 
 const toggleLikeReply = async (req, res) => {
-  const { productId, ratingId } = req.params;
-  const { userId, content } = req.body;
+  console.log("xxxx");
 
-  console.log(userId, content);
+  const { productId, ratingId, userId, content } = req.body;
+
+  console.log("check", userId, content);
 
   try {
     const product = await Products.findById(productId);
