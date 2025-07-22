@@ -13,7 +13,6 @@ const createBlogController = async (req, res) => {
       readTime: req.body.readTime,
       featured: req.body.featured,
     });
-    console.log("check", blog);
 
     res.status(201).json({ message: "Tạo blog thành công", blog });
   } catch (err) {

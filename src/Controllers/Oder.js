@@ -330,8 +330,6 @@ const CreateOrder = async (req, res) => {
           { $pull: { items: { _id: { $in: idsToDelete } } } }
         );
 
-        console.log(resultCart.modifiedCount);
-
         if (resultCart.modifiedCount > 0) {
           console.log(
             `${idsToDelete.length} sản phẩm đã được xóa khỏi giỏ hàng.`

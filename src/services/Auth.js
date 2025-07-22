@@ -6,7 +6,7 @@ require("dotenv").config;
 const RegisterUser = async (name, email, password, isAdmin = false, avatar) => {
   try {
     const existingUser = await Users.findOne({ email });
-    console.log(existingUser);
+
     if (existingUser) {
       return {
         success: false,

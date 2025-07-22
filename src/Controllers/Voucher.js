@@ -21,20 +21,6 @@ const addVoucherAPI = async (req, res) => {
       content,
     } = req.body;
 
-    console.log(
-      code,
-      discountType,
-      discountValue,
-      minOrderValue,
-      startDate,
-      endDate,
-      usageLimit,
-      user,
-      appliedUsers,
-      userGroup,
-      content
-    );
-
     if (!code || !discountType || !discountValue || !startDate || !endDate) {
       return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc" });
     }
@@ -114,9 +100,6 @@ const getListOneVoucherAPI = async (req, res) => {
 const updateVoucher = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(id);
-
-    console.log(req.body);
 
     // Các trường không được cập nhật
     const blockedFields = ["code", "usedCount", "appliedUsers", "user"];
@@ -135,7 +118,6 @@ const updateVoucher = async (req, res) => {
         updateData[key] = value;
       }
     }
-    console.log(updateData);
 
     const updatedVoucher = await Voucher.findByIdAndUpdate(id, updateData, {
       new: true,

@@ -340,10 +340,8 @@ const sendOTP = async (req, res) => {
 
 const verifyOTPAndRegister = async (req, res) => {
   const { email, otp } = req.body;
-  console.log(req);
 
   const record = otpStore[email];
-  console.log(record);
 
   if (!record || record.otp !== otp || Date.now() > record.expires) {
     return res

@@ -16,6 +16,7 @@ const {
   toggleLikeReply,
   ListSlugProductAPI,
   AddProductsFromExcelAPI,
+  updateViewProductController,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -226,6 +227,10 @@ RouterAPI.get(
   "/categoryfilter/:gender/:category/:page",
   CategoryGenderFitterAPI
 );
+
+// update view sản phẩm
+
+RouterAPI.post("/product/update-view/:slug", updateViewProductController);
 
 // Category
 

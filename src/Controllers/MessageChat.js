@@ -18,18 +18,14 @@ const sendMessageCutomerAPI = async (req, res) => {
     }
 
     const imageUrl = [];
-    console.log("req.files?.images", req.files?.images);
 
     if (req.files?.images) {
       const files = Array.isArray(req.files.images)
         ? req.files.images
         : [req.files.images];
 
-      console.log(files);
-
       for (const file of files) {
         const resultImage = await uploadFileToCloudinary(file);
-        console.log("resultImage", resultImage);
 
         resultImage.forEach((images) => {
           imageUrl.push(images.secure_url);
@@ -83,7 +79,6 @@ const sendMessageToAdminAPI = async (req, res) => {
 
       for (const file of files) {
         const resultImage = await uploadFileToCloudinary(file);
-        console.log("resultImage", resultImage);
 
         resultImage.forEach((images) => {
           imageUrl.push(images.secure_url);

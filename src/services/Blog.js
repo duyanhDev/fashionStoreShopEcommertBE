@@ -40,8 +40,6 @@ const CreateBlog = async ({
   if (files) {
     const imgFiles = Array.isArray(files) ? files : [files];
 
-    console.log(imgFiles);
-
     for (const file of imgFiles) {
       const results = await uploadFileToCloudinary(file); // <- Trả về mảng
 

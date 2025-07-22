@@ -47,8 +47,6 @@ router.get("/user", authMiddleware, (req, res) => {
 
 // ========== FACEBOOK LOGIN ==========
 router.post("/facebook", async (req, res) => {
-  console.log("Facebook login...");
-
   const { accessToken, userID } = req.body;
 
   try {

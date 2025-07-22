@@ -42,38 +42,11 @@ const ListProducts = async () => {
 // oneupdate
 const ListOneProducts = async (id) => {
   try {
-    const data = await Products.findOne({ _id: id })
-
-      .populate("category", "name")
-      .populate({
-        path: "ratings",
-        populate: [
-          {
-            path: "userId",
-            select: "name avatar",
-          },
-          {
-            path: "replies",
-            populate: [
-              {
-                path: "userId",
-                select: "name avatar",
-              },
-              {
-                path: "replies",
-                populate: {
-                  path: "userId",
-                  select: "name avatar",
-                },
-              },
-            ],
-          },
-        ],
-      });
-    console.log(
-      "xx",
-      data.ratings[0].replies[0].userId // → Nếu vẫn là ObjectId thì populate chưa đúng
+    const data = await Products.findOne({ _id: id }).populate(
+      "category",
+      "name"
     );
+
     return data;
   } catch (error) {
     console.log("list products error:", error);
@@ -136,6 +109,7 @@ const UpdateProducts = async (productData) => {
         color: productData.color,
         images: productData.images,
         costPrice: productData.costPrice,
+        view: productData.view,
       },
       { new: true } // Trả về document sau khi update
     );
@@ -314,8 +288,6 @@ const ProductFilter = async ({
       Products.countDocuments(filter),
     ]);
 
-    console.log("products", count);
-
     // Tính tổng số trang
     const totalPages = Math.ceil(count / perPage);
 
@@ -431,6 +403,24 @@ const searchProductsByName = async (keyword, page) => {
   }
 };
 
+const updateProductView = async (slug) => {
+  if (!slug) {
+    throw new Error("Không tồn tại blog");
+  }
+
+  const blog = await Products.findOneAndUpdate(
+    { slug },
+    { $inc: { view: 1 } }, // Tăng view
+    { new: true } // Trả về blog đã được cập nhật
+  );
+
+  if (!blog) {
+    throw new Error("Không tìm thấy blog");
+  }
+
+  return blog;
+};
+
 module.exports = {
   AddProducts,
   ListProducts,
@@ -443,4 +433,5 @@ module.exports = {
   CategoryGenderFitter,
   toggleLikeRating,
   searchProductsByName,
+  updateProductView,
 };

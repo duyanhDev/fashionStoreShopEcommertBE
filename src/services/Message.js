@@ -38,8 +38,6 @@ const sendMessageToCustomer = async (sender, recipient, content, images) => {
 
 // Gửi tin nhắn từ khách hàng đến admin
 const sendMessageToAdmin = async (sender, content, images) => {
-  console.log("sendMessageToAdmin: sender is Customer, recipient is Admin");
-
   // Validate message content
   if (!content || content.trim() === "") {
     throw new Error("Message content cannot be empty");

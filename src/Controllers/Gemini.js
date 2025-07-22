@@ -59,8 +59,6 @@ const handleGeminiRequest = async (req, res) => {
     // Lấy kết quả từ phần nội dung đầu tiên của candidate
     const text = response.candidates[0]?.content?.parts?.[0]?.text;
 
-    console.log(text);
-
     if (!text) {
       return res
         .status(500)

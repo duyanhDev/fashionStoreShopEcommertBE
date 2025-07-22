@@ -111,7 +111,6 @@ const addMultipleToCart = async (req, res) => {
 
     for (const item of items) {
       const { productId, quantity, size, color, price } = item.product;
-      console.log(productId, quantity, size, color, price);
 
       const product = await Product.findById(productId);
       if (!product) continue;
