@@ -42,10 +42,9 @@ const ListProducts = async () => {
 // oneupdate
 const ListOneProducts = async (id) => {
   try {
-    const data = await Products.findOne({ _id: id }).populate(
-      "category",
-      "name"
-    );
+    const data = await Products.findOne({ _id: id })
+      .populate("category", "name")
+      .populate("supplierId", "name");
 
     return data;
   } catch (error) {
@@ -287,6 +286,8 @@ const ProductFilter = async ({
       Products.find(filter).sort(sortCriteria).skip(skip).limit(perPage),
       Products.countDocuments(filter),
     ]);
+
+    console.log("products", count);
 
     // Tính tổng số trang
     const totalPages = Math.ceil(count / perPage);

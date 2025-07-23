@@ -39,6 +39,7 @@ const AddProductsAPI = async (req, res) => {
       discount,
       costPrice,
       view,
+      supplierId,
     } = req.body;
 
     // Parse variants
@@ -97,6 +98,7 @@ const AddProductsAPI = async (req, res) => {
       view,
       stock: totalStock,
       variants,
+      supplierId,
     };
 
     const saved = await AddProducts(productData);
@@ -299,185 +301,159 @@ const UpdateProductsAPI = async (req, res) => {
       color,
       costPrice,
       view,
+      isAddStock: rawIsAddStock = true,
+      supplierId,
     } = req.body;
     const { id } = req.params;
 
+    const isAddStock = rawIsAddStock === "true" || rawIsAddStock === true;
+
     if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "ID sản phẩm là bắt buộc",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "ID sản phẩm là bắt buộc" });
     }
 
     const existingProduct = await Products.findById(id);
     if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy sản phẩm",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm" });
     }
 
     const parseArray = (input) => {
       if (!input) return [];
+      try {
+        const parsed = JSON.parse(input);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
       return Array.isArray(input)
-        ? input.map((item) => String(item).trim()).filter(Boolean)
+        ? input.map((item) => item)
         : String(input)
             .split(",")
             .map((item) => item.trim())
             .filter(Boolean);
     };
 
-    const sizeArray = parseArray(size);
-    const colorArray = parseArray(color);
-
-    if (req.files?.images && colorArray.length > 0) {
-      const filesCount = Array.isArray(req.files.images)
-        ? req.files.images.length
-        : 1;
-
-      if (filesCount !== colorArray.length) {
-        return res.status(400).json({
-          success: false,
-          message: `Số lượng ảnh (${filesCount}) phải khớp với số màu (${colorArray.length})`,
-        });
-      }
-    }
+    const sizeArray = [...new Set(parseArray(size))];
+    const colorArray = [...new Set(parseArray(color))];
 
     let variants = JSON.parse(JSON.stringify(existingProduct.variants || []));
 
     const findOrCreateVariant = (color) => {
       let variant = variants.find((v) => v.color === color);
       if (!variant) {
-        variant = {
-          color,
-          sizes: [],
-          images: [],
-        };
+        variant = { color, sizes: [], images: [] };
         variants.push(variant);
       }
       return variant;
     };
 
-    const updateVariantSizes = (
-      variant,
-      sizesToUpdate,
-      stockValue = 0,
-      isAddStock = false
-    ) => {
+    const updateVariantSizes = (variant, sizesToUpdate, stockValue, isAdd) => {
       const existingSizesMap = new Map(variant.sizes.map((s) => [s.size, s]));
 
-      if (sizesToUpdate.length > 0) {
-        sizesToUpdate.forEach((sizeValue) => {
-          if (existingSizesMap.has(sizeValue)) {
-            const existingSize = existingSizesMap.get(sizeValue);
-            existingSize.quantity = isAddStock
-              ? (existingSize.quantity || 0) + Number(stockValue || 0)
-              : Number(stockValue || existingSize.quantity || 0);
-          } else {
-            variant.sizes.push({
-              size: sizeValue,
-              quantity: Number(stockValue || 0),
-              sold: 0,
-            });
-          }
-        });
-      } else if (stockValue !== undefined) {
-        variant.sizes.forEach((sizeObj) => {
-          sizeObj.quantity = isAddStock
-            ? (sizeObj.quantity || 0) + Number(stockValue)
-            : Number(stockValue);
-        });
-      }
+      sizesToUpdate.forEach((sizeItem) => {
+        const sizeName =
+          typeof sizeItem === "object" ? sizeItem.size : sizeItem;
+        const qty =
+          typeof sizeItem === "object"
+            ? Number(sizeItem.quantity || 0)
+            : Number(stockValue || 0);
+        const existingSize = existingSizesMap.get(sizeName);
+
+        if (existingSize) {
+          existingSize.quantity = isAdd
+            ? existingSize.quantity + qty
+            : Math.max(existingSize.quantity - qty, 0);
+        } else {
+          variant.sizes.push({
+            size: sizeName,
+            quantity: isAdd ? qty : 0,
+            sold: 0,
+          });
+        }
+      });
     };
 
-    // ✅ Upload ảnh nếu có
+    let hasUpdatedStock = false;
+
+    // Nếu có ảnh → xử lý ảnh và stock
     if (req.files?.images) {
-      try {
-        const files = Array.isArray(req.files.images)
-          ? req.files.images
-          : [req.files.images];
+      const files = Array.isArray(req.files.images)
+        ? req.files.images
+        : [req.files.images];
 
-        for (let i = 0; i < colorArray.length; i++) {
-          const currentColor = colorArray[i];
-          const variant = findOrCreateVariant(currentColor);
+      for (let i = 0; i < colorArray.length; i++) {
+        const currentColor = colorArray[i];
+        const variant = findOrCreateVariant(currentColor);
+        const resultImage = await uploadFileToCloudinary(files[i]);
+        variant.images.push({ url: resultImage.secure_url });
 
-          const resultImage = await uploadFileToCloudinary(files[i]);
-          variant.images.push({ url: resultImage.secure_url });
-
-          if (sizeArray.length > 0) {
-            updateVariantSizes(variant, sizeArray, stock, false);
-          }
+        if (sizeArray.length > 0 && !hasUpdatedStock) {
+          updateVariantSizes(variant, sizeArray, stock, isAddStock);
         }
-      } catch (uploadError) {
-        console.error("Lỗi khi tải lên hình ảnh:", uploadError);
-        return res.status(500).json({
-          success: false,
-          message: "Lỗi khi tải lên hình ảnh: " + uploadError.message,
+      }
+
+      hasUpdatedStock = true;
+    }
+
+    // Nếu không có ảnh nhưng có size
+    if (!hasUpdatedStock && sizeArray.length > 0) {
+      if (colorArray.length > 0) {
+        colorArray.forEach((c) => {
+          const variant = findOrCreateVariant(c);
+          updateVariantSizes(variant, sizeArray, stock, isAddStock);
+        });
+      } else {
+        variants.forEach((variant) => {
+          updateVariantSizes(variant, sizeArray, stock, isAddStock);
         });
       }
+      hasUpdatedStock = true;
     }
 
-    // ✅ Trường hợp cộng thêm stock vào size/color cụ thể
-    if (!req.files?.images && sizeArray.length > 0 && colorArray.length > 0) {
-      colorArray.forEach((currentColor) => {
-        const variant = findOrCreateVariant(currentColor);
-        updateVariantSizes(variant, sizeArray, stock, true); // ✅ cộng thêm
-      });
-    }
-
-    // ✅ Nếu chỉ có size (không màu) => cập nhật tất cả variants
-    if (!req.files?.images && colorArray.length === 0 && sizeArray.length > 0) {
-      variants.forEach((variant) => {
-        updateVariantSizes(variant, sizeArray, stock, false);
-      });
-    }
-
-    // ✅ Nếu chỉ có stock → cộng thêm cho tất cả
+    // Nếu chỉ có stock → áp dụng cho mọi size của mọi color
     if (
       stock !== undefined &&
       sizeArray.length === 0 &&
-      colorArray.length === 0
+      colorArray.length === 0 &&
+      !hasUpdatedStock
     ) {
       variants.forEach((variant) => {
-        updateVariantSizes(variant, [], stock, true);
+        variant.sizes.forEach((sizeObj) => {
+          sizeObj.quantity = isAddStock
+            ? sizeObj.quantity + Number(stock)
+            : Number(stock);
+          sizeObj.quantity = Math.max(sizeObj.quantity, 0);
+        });
+      });
+      hasUpdatedStock = true;
+    }
+
+    // Cập nhật sold
+    if (sold !== undefined && variants.length > 0) {
+      const totalSizes = variants.reduce((acc, v) => acc + v.sizes.length, 0);
+      const soldPerSize = Math.floor(Number(sold) / totalSizes);
+      let remaining = Number(sold) - soldPerSize * totalSizes;
+
+      variants.forEach((variant) => {
+        variant.sizes.forEach((sizeObj, index) => {
+          sizeObj.sold =
+            soldPerSize + (remaining > 0 && index === 0 ? remaining : 0);
+          if (index === 0) remaining = 0;
+        });
       });
     }
 
-    // ✅ Cập nhật sold nếu có
-    if (sold !== undefined && variants.length > 0) {
-      const totalSizes = variants.reduce(
-        (acc, variant) => acc + variant.sizes.length,
-        0
-      );
-      if (totalSizes > 0) {
-        const soldPerSize = Math.floor(Number(sold) / totalSizes);
-        let remainingSold = Number(sold) - soldPerSize * totalSizes;
-
-        variants.forEach((variant) => {
-          variant.sizes.forEach((sizeObj, index) => {
-            sizeObj.sold =
-              soldPerSize +
-              (remainingSold > 0 && index === 0 ? remainingSold : 0);
-            if (index === 0) remainingSold = 0;
-          });
-        });
-      }
-    }
-
+    // Tổng kết stock và sold
     const totalStock = variants.reduce(
       (acc, variant) =>
-        acc +
-        variant.sizes.reduce(
-          (sum, sizeObj) => sum + (sizeObj.quantity || 0),
-          0
-        ),
+        acc + variant.sizes.reduce((s, sz) => s + sz.quantity, 0),
       0
     );
-
     const totalSold = variants.reduce(
       (acc, variant) =>
-        acc +
-        variant.sizes.reduce((sum, sizeObj) => sum + (sizeObj.sold || 0), 0),
+        acc + variant.sizes.reduce((s, sz) => s + (sz.sold || 0), 0),
       0
     );
 
@@ -487,7 +463,14 @@ const UpdateProductsAPI = async (req, res) => {
       discount !== undefined ? Number(discount) : existingProduct.discount;
     const discountedPrice = finalPrice * (1 - finalDiscount / 100);
 
-    const updateFields = {};
+    const updateFields = {
+      updatedAt: new Date(),
+      variants,
+      stock: totalStock,
+      sold: sold !== undefined ? Number(sold) : totalSold,
+      discountedPrice,
+    };
+
     if (name !== undefined) updateFields.name = name;
     if (gender !== undefined) updateFields.gender = gender;
     if (description !== undefined) updateFields.description = description;
@@ -498,11 +481,7 @@ const UpdateProductsAPI = async (req, res) => {
     if (discount !== undefined) updateFields.discount = finalDiscount;
     if (costPrice !== undefined) updateFields.costPrice = Number(costPrice);
     if (view !== undefined) updateFields.view = view;
-    updateFields.stock = totalStock;
-    updateFields.sold = sold !== undefined ? Number(sold) : totalSold;
-    updateFields.discountedPrice = discountedPrice;
-    updateFields.variants = variants;
-    updateFields.updatedAt = new Date();
+    if (supplierId != undefined) updateFields.supplierId = supplierId;
 
     const updatedProduct = await Products.findOneAndUpdate(
       { _id: id },
@@ -514,10 +493,9 @@ const UpdateProductsAPI = async (req, res) => {
     );
 
     if (!updatedProduct) {
-      return res.status(404).json({
-        success: false,
-        message: "Không thể cập nhật sản phẩm",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không thể cập nhật sản phẩm" });
     }
 
     return res.status(200).json({
@@ -940,10 +918,6 @@ const AddProductsFromExcelAPI = async (req, res) => {
       }
     }
 
-    // Wait for all image uploads to complete
-    console.log(
-      `Uploading ${imageUploadPromises.length} images to Cloudinary...`
-    );
     const uploadResults = await Promise.all(imageUploadPromises);
 
     // Update products with Cloudinary URLs

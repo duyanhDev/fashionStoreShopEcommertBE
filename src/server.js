@@ -69,7 +69,6 @@ const config = {
 app.post("/zalopay-callback", async (req, res) => {
   try {
     const callback_data = req.body;
-    console.log("Received callback data:", callback_data);
 
     // Verify callback data
     const data =

@@ -101,6 +101,11 @@ const {
   handleGeminiRequest,
   generateBlogByGemini,
 } = require("../Controllers/Gemini");
+const {
+  CreateSupplierAPI,
+  FindAllSupplierAPI,
+  FindOneIdSupplierAPI,
+} = require("../Controllers/Supplier");
 
 //product
 /**
@@ -362,4 +367,9 @@ RouterAPI.post("/ChatAI", BotChatAPI);
 RouterAPI.post("/genminiAi", handleGeminiRequest);
 RouterAPI.post("/generate-ai-blog", generateBlogByGemini);
 
+// nhà cung cấp
+
+RouterAPI.post("/create-supplier", CreateSupplierAPI);
+RouterAPI.get("/supplier", FindAllSupplierAPI);
+RouterAPI.get("/supplier-one/:id", FindOneIdSupplierAPI);
 module.exports = RouterAPI;

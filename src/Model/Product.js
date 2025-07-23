@@ -40,6 +40,11 @@ const productSchema = new mongoose.Schema({
   ratings: [Ratings],
   costPrice: { type: Number, required: true },
   slug: { type: String, unique: true },
+  view: {
+    type: Number,
+    default: 0,
+  },
+  supplierId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
