@@ -22,7 +22,7 @@ const ListProducts = async () => {
       .populate("category", "name")
       .populate({
         path: "ratings.userId", // Lấy thông tin userId trong ratings
-        select: "name avatar", // Chỉ lấy trường name từ model Users
+        select: "name avatar email", // Chỉ lấy trường name từ model Users
       })
       .populate({
         path: "ratings.replies.userId", // Lấy thông tin userId trong ratings
@@ -232,6 +232,7 @@ const ProductFilter = async ({
   care,
   size,
   color,
+  view,
   page = 1,
 }) => {
   try {
@@ -279,6 +280,10 @@ const ProductFilter = async ({
 
     if (sortSold === "hot") {
       sortCriteria.sold = -1;
+    }
+
+    if (view === "asc") {
+      sortCriteria.view = -1;
     }
 
     // Truy vấn và đếm dữ liệu
@@ -422,6 +427,30 @@ const updateProductView = async (slug) => {
   return blog;
 };
 
+const DeleteRatingProduct = async (productId, ratingId) => {
+  if (!productId || !ratingId) {
+    throw new Error("Thiếu productId hoặc ratingId");
+  }
+
+  try {
+    const result = await Products.updateOne(
+      { _id: productId },
+      { $pull: { ratings: { _id: ratingId } } }
+    );
+
+    if (result.modifiedCount === 0) {
+      throw new Error(
+        "Không tìm thấy đánh giá để xóa hoặc đánh giá đã bị xóa trước đó."
+      );
+    }
+
+    return { success: true, message: "Xóa đánh giá thành công", result };
+  } catch (err) {
+    console.error("Lỗi khi xóa đánh giá:", err);
+    throw new Error("Đã xảy ra lỗi khi xóa đánh giá.");
+  }
+};
+
 module.exports = {
   AddProducts,
   ListProducts,
@@ -435,4 +464,5 @@ module.exports = {
   toggleLikeRating,
   searchProductsByName,
   updateProductView,
+  DeleteRatingProduct,
 };

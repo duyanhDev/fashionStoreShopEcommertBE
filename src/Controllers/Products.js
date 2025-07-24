@@ -3,7 +3,6 @@ const {
   AddProducts,
   ListProducts,
   ListOneProducts,
-  UpdateProducts,
   PutFeedbackProduct,
   PutFeedbackProducts,
   ProductFilter,
@@ -11,12 +10,14 @@ const {
   toggleLikeRating,
   ListOneSlugProducts,
   updateProductView,
+  DeleteRatingProduct,
 } = require("./../services/Product");
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 const Products = require("./../Model/Product");
 const { json } = require("express");
+
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 
@@ -591,6 +592,7 @@ const CategoryGenderAPI = async (req, res) => {
     care,
     size,
     color,
+    view,
   } = req.query;
 
   try {
@@ -607,6 +609,7 @@ const CategoryGenderAPI = async (req, res) => {
       size,
       color,
       page,
+      view,
     });
 
     return res.status(200).json({
@@ -1016,6 +1019,43 @@ const updateViewProductController = async (req, res) => {
   }
 };
 
+const DeleteRatingProductController = async (req, res) => {
+  try {
+    const { productId, ratingId } = req.query;
+
+    const data = await DeleteRatingProduct(productId, ratingId);
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const deleteOneProduct = async (req, res) => {
+  try {
+    const { productId } = req.query;
+
+    const data = await Products.deleteOne({ _id: productId });
+
+    if (data.acknowledged === 0) {
+      throw new Error(
+        "Không tìm thấy đánh giá để xóa hoặc đánh giá đã bị xóa trước đó."
+      );
+    }
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+      message: "Xóa thành công 1 sản phẩm",
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 module.exports = {
   AddProductsAPI,
   ListProductsAPI,
@@ -1030,4 +1070,6 @@ module.exports = {
   toggleLikeReply,
   AddProductsFromExcelAPI,
   updateViewProductController,
+  DeleteRatingProductController,
+  deleteOneProduct,
 };

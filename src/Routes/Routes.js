@@ -17,6 +17,8 @@ const {
   ListSlugProductAPI,
   AddProductsFromExcelAPI,
   updateViewProductController,
+  DeleteRatingProductController,
+  deleteOneProduct,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -181,6 +183,10 @@ RouterAPI.get("/products-slug/:slug", ListSlugProductAPI);
  */
 RouterAPI.put("/products/:id", verifyToken, isAdmin, UpdateProductsAPI);
 
+// xóa sản phẩm
+
+RouterAPI.delete("/delete-product", verifyToken, isAdmin, deleteOneProduct);
+
 // đánh giá
 /**
  * @swagger
@@ -224,6 +230,10 @@ RouterAPI.post("/feedbacks-products", PutFeedbackProductsAPI);
 RouterAPI.post("/like", toggleLikeRatingAPI);
 
 RouterAPI.post("/products/replies", toggleLikeReply);
+
+// xóa phản hồi
+
+RouterAPI.delete("/delete-rating", DeleteRatingProductController);
 
 // gender products
 
