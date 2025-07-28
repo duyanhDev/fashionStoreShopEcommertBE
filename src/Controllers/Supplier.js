@@ -2,6 +2,8 @@ const {
   CreateSupplier,
   FindAllSupplier,
   FindOneIdSupplier,
+  UpdateSupplier,
+  deleteSupplier,
 } = require("../services/Supplier");
 
 const CreateSupplierAPI = async (req, res) => {
@@ -27,28 +29,36 @@ const CreateSupplierAPI = async (req, res) => {
       !taxCode ||
       !notes
     ) {
-      throw new Error("Thiếu trường");
+      return res.status(400).json({
+        EC: 1,
+        EM: "Thiếu trường",
+      });
     }
 
     const formdata = {
-      name: name,
-      contactPerson: contactPerson,
-      phone: phone,
-      email: email,
-      address: address,
-      website: website,
-      taxCode: taxCode,
-      notes: notes,
+      name,
+      contactPerson,
+      phone,
+      email,
+      address,
+      website,
+      taxCode,
+      notes,
     };
 
     const data = await CreateSupplier(formdata);
 
     return res.status(200).json({
       EC: 0,
-      data: data,
+      EM: "Tạo nhà cung cấp thành công",
+      data,
     });
   } catch (error) {
-    console.log(error);
+    console.log("Lỗi:", error.message);
+    return res.status(409).json({
+      EC: 1,
+      EM: error.message || "Có lỗi xảy ra",
+    });
   }
 };
 
@@ -79,8 +89,62 @@ const FindOneIdSupplierAPI = async (req, res) => {
   }
 };
 
+const UpdateSupplierAPI = async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      contactPerson,
+      phone,
+      email,
+      address,
+      website,
+      taxCode,
+      notes,
+    } = req.body;
+
+    const formdata = {
+      id: id,
+      name: name,
+      contactPerson: contactPerson,
+      phone: phone,
+      email: email,
+      address: address,
+      website: website,
+      taxCode: taxCode,
+      notes: notes,
+    };
+
+    const data = await UpdateSupplier(formdata);
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const deleteSupplierAPI = async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    const data = await deleteSupplier(id);
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 module.exports = {
   CreateSupplierAPI,
   FindAllSupplierAPI,
   FindOneIdSupplierAPI,
+  UpdateSupplierAPI,
+  deleteSupplierAPI,
 };

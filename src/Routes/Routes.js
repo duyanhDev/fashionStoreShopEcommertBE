@@ -107,6 +107,8 @@ const {
   CreateSupplierAPI,
   FindAllSupplierAPI,
   FindOneIdSupplierAPI,
+  UpdateSupplierAPI,
+  deleteSupplierAPI,
 } = require("../Controllers/Supplier");
 
 //product
@@ -379,7 +381,9 @@ RouterAPI.post("/generate-ai-blog", generateBlogByGemini);
 
 // nhà cung cấp
 
-RouterAPI.post("/create-supplier", CreateSupplierAPI);
+RouterAPI.post("/create-supplier", verifyToken, isAdmin, CreateSupplierAPI);
 RouterAPI.get("/supplier", FindAllSupplierAPI);
 RouterAPI.get("/supplier-one/:id", FindOneIdSupplierAPI);
+RouterAPI.put("/update-supplier", verifyToken, isAdmin, UpdateSupplierAPI);
+RouterAPI.delete("/delete-supplier", verifyToken, isAdmin, deleteSupplierAPI);
 module.exports = RouterAPI;
