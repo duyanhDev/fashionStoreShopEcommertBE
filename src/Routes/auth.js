@@ -34,7 +34,7 @@ router.get(
 router.get("/user", authMiddleware, (req, res) => {
   res.json({
     message: "Đã xác thực thành công",
-    _id: req.userId,
+    _id: req.user._id,
     name: req.user.name,
     email: req.user.email,
     isAdmin: req.user.isAdmin,
