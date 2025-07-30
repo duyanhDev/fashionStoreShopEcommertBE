@@ -174,40 +174,61 @@ app.set("io", io);
 //   next();
 // });
 
+const userSocketMap = new Map();
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-  // Gửi ID cho client lưu lại (ví dụ mapping userId với socketId)
+
   socket.on("register", ({ userId }) => {
     socket.userId = userId;
-    socket.join(userId); // join vào room riêng theo userId
+    userSocketMap.set(userId, socket.id);
+    socket.join(userId);
     console.log(`User registered: ${userId} with socketId: ${socket.id}`);
   });
 
-  // Gửi lời mời gọi video
   socket.on("call-user", ({ to, offer }) => {
-    io.to(to).emit("incoming-call", {
-      from: socket.userId,
-      offer,
-    });
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("incoming-call", {
+        from: socket.userId,
+        offer,
+      });
+    }
   });
 
-  // Trả lời cuộc gọi
   socket.on("answer-call", ({ to, answer }) => {
-    io.to(to).emit("call-answered", {
-      from: socket.userId,
-      answer,
-    });
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call-answered", {
+        from: socket.userId,
+        answer,
+      });
+    }
   });
 
-  // ICE candidate
   socket.on("ice-candidate", ({ to, candidate }) => {
-    io.to(to).emit("ice-candidate", {
-      from: socket.userId,
-      candidate,
-    });
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("ice-candidate", {
+        from: socket.userId,
+        candidate,
+      });
+    }
+  });
+
+  socket.on("end-call", ({ to }) => {
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call-ended", {
+        from: socket.userId,
+      });
+    }
   });
 
   socket.on("disconnect", () => {
+    if (socket.userId) {
+      userSocketMap.delete(socket.userId);
+    }
     console.log("User disconnected:", socket.id);
   });
 });
