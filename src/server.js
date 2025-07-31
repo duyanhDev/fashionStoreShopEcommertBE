@@ -186,50 +186,68 @@ io.on("connection", (socket) => {
     console.log(`User registered: ${userId} with socketId: ${socket.id}`);
   });
 
-  socket.on("call-user", ({ to, offer }) => {
-    const targetSocketId = userSocketMap.get(to);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("incoming-call", {
-        from: socket.userId,
-        offer,
-      });
-    }
-  });
-
+  // Enhanced answer-call event
   socket.on("answer-call", ({ to, answer }) => {
-    const targetSocketId = userSocketMap.get(to);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("call-answered", {
-        from: socket.userId,
-        answer,
-      });
+    try {
+      console.log(`✅ Call answered by ${socket.userId} to ${to}`);
+
+      if (!socket.userId) {
+        console.log("⚠️ Responder not registered");
+        socket.emit("answer-error", { error: "User not registered" });
+        return;
+      }
+
+      if (!answer || !answer.type || !answer.sdp) {
+        console.log("⚠️ Invalid answer data");
+        socket.emit("answer-error", { error: "Invalid answer data" });
+        return;
+      }
+
+      const targetSocketId = userSocketMap.get(to);
+      if (targetSocketId) {
+        console.log(
+          `📤 Forwarding answer to ${to} (socket: ${targetSocketId})`
+        );
+        io.to(targetSocketId).emit("call-answered", {
+          from: socket.userId,
+          answer,
+        });
+      } else {
+        console.log(`❌ User ${to} not found or not connected`);
+        socket.emit("answer-error", { error: "User not available" });
+      }
+    } catch (error) {
+      console.error("❌ Error handling answer-call:", error);
+      socket.emit("answer-error", { error: error.message });
     }
   });
 
+  // Handle ICE Candidate forwarding
   socket.on("ice-candidate", ({ to, candidate }) => {
-    const targetSocketId = userSocketMap.get(to);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("ice-candidate", {
-        from: socket.userId,
-        candidate,
-      });
+    try {
+      const targetSocketId = userSocketMap.get(to);
+      if (targetSocketId && candidate) {
+        io.to(targetSocketId).emit("ice-candidate", {
+          from: socket.userId,
+          candidate,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error forwarding ICE candidate:", error);
     }
   });
 
-  socket.on("end-call", ({ to }) => {
-    const targetSocketId = userSocketMap.get(to);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("call-ended", {
-        from: socket.userId,
-      });
-    }
-  });
-
+  // Handle user disconnect
   socket.on("disconnect", () => {
-    if (socket.userId) {
+    if (socket.userId && userSocketMap.has(socket.userId)) {
       userSocketMap.delete(socket.userId);
+      console.log(
+        `👋 User disconnected: ${socket.userId} (socket: ${socket.id})`
+      );
+      console.log(`📊 Remaining connected users: ${userSocketMap.size}`);
+    } else {
+      console.log(`👋 Unknown socket disconnected: ${socket.id}`);
     }
-    console.log("User disconnected:", socket.id);
   });
 });
 
