@@ -185,21 +185,6 @@ io.on("connection", (socket) => {
     socket.join(userId);
     console.log(`User registered: ${userId} with socketId: ${socket.id}`);
   });
-  // Người dùng A gọi người dùng B
-  socket.on("call-user", ({ to, offer }) => {
-    const targetSocketId = userSocketMap.get(to);
-    if (targetSocketId) {
-      console.log(`📞 ${socket.userId} is calling ${to}`);
-
-      io.to(targetSocketId).emit("incoming-call", {
-        from: socket.userId,
-        offer,
-      });
-    } else {
-      console.log(`❌ User ${to} not found or offline`);
-      socket.emit("call-error", { error: "Người nhận không online" });
-    }
-  });
 
   // Enhanced answer-call event
   socket.on("answer-call", ({ to, answer }) => {
