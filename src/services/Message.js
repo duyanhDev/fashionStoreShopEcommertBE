@@ -44,7 +44,16 @@ const sendMessageToAdmin = async (sender, content, images) => {
   }
 
   // Find all admin users
-  const recipients = await Users.find({ role: "admin" }, { _id: 1 });
+  const recipients = await Users.find(
+    {
+      $or: [
+        { role: "admin" },
+        { permissions: "customer_support" }, // nếu permissions là chuỗi
+        // hoặc nếu permissions là mảng, dùng: { permissions: { $in: ["customer_support"] } }
+      ],
+    },
+    { _id: 1 }
+  );
 
   if (recipients.length === 0) {
     throw new Error("No admin users found");
