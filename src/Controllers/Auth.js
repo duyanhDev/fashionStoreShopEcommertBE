@@ -147,7 +147,7 @@ const UpDateProfileUserAPI = async (req, res) => {
 
     let rolePermissions = UpdateUser.permissions;
     if (role === "customer") {
-      rolePermissions = "";
+      rolePermissions = "customer";
     }
     // Cập nhật dữ liệu
     const updatedData = {
@@ -332,10 +332,8 @@ const sendOTP = async (req, res) => {
 
 const verifyOTPAndRegister = async (req, res) => {
   const { email, otp } = req.body;
-  console.log(req);
 
   const record = otpStore[email];
-  console.log(record);
 
   if (!record || record.otp !== otp || Date.now() > record.expires) {
     return res
@@ -365,6 +363,41 @@ const DeleteUser = async (req, res) => {
   } catch (error) {}
 };
 
+const changeUserPassword = async (req, res) => {
+  try {
+    const { email, password, passwordAdmin, adminEmail } = req.body;
+
+    // 1. Tìm admin theo email
+    const admin = await Users.findOne({ email: adminEmail, role: "admin" });
+    if (!admin) {
+      return res
+        .status(404)
+        .json({ message: "Đây không phải là tài khoản admin" });
+    }
+
+    // 2. Kiểm tra mật khẩu admin
+    const isAdminPasswordValid = await admin.comparePassword(passwordAdmin);
+    if (!isAdminPasswordValid) {
+      return res.status(403).json({ message: "Nhập sai mật khẩu của admin" });
+    }
+
+    // 3. Tìm user cần đổi mật khẩu
+    const user = await Users.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Không tồn tại user này" });
+    }
+
+    // 4. Cập nhật mật khẩu mới
+    user.password = password;
+    await user.save();
+
+    return res.status(200).json({ message: "Cập nhật mật khẩu thành công" });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   RegisterUserAPI,
   LoginUserAPI,
@@ -376,4 +409,5 @@ module.exports = {
   DeleteUser,
   sendOTP,
   verifyOTPAndRegister,
+  changeUserPassword,
 };

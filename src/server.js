@@ -177,67 +177,18 @@ app.set("io", io);
 const userSocketMap = new Map();
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  socket.on("register", ({ userId }) => {
+  socket.on("register", ({ userId, role }) => {
     socket.userId = userId;
-    userSocketMap.set(userId, socket.id);
+    socket.role = role;
+
+    userSocketMap.set(userId, {
+      socketId: socket.id,
+      role: role,
+    });
+
     socket.join(userId);
-    console.log(`User registered: ${userId} with socketId: ${socket.id}`);
+    console.log(`✅ Registered: ${userId} (${role}) - ${socket.id}`);
   });
-
-  // Enhanced answer-call event
-  socket.on("answer-call", ({ to, answer }) => {
-    try {
-      console.log(`✅ Call answered by ${socket.userId} to ${to}`);
-
-      if (!socket.userId) {
-        console.log("⚠️ Responder not registered");
-        socket.emit("answer-error", { error: "User not registered" });
-        return;
-      }
-
-      if (!answer || !answer.type || !answer.sdp) {
-        console.log("⚠️ Invalid answer data");
-        socket.emit("answer-error", { error: "Invalid answer data" });
-        return;
-      }
-
-      const targetSocketId = userSocketMap.get(to);
-      if (targetSocketId) {
-        console.log(
-          `📤 Forwarding answer to ${to} (socket: ${targetSocketId})`
-        );
-        io.to(targetSocketId).emit("call-answered", {
-          from: socket.userId,
-          answer,
-        });
-      } else {
-        console.log(`❌ User ${to} not found or not connected`);
-        socket.emit("answer-error", { error: "User not available" });
-      }
-    } catch (error) {
-      console.error("❌ Error handling answer-call:", error);
-      socket.emit("answer-error", { error: error.message });
-    }
-  });
-
-  // Handle ICE Candidate forwarding
-  socket.on("ice-candidate", ({ to, candidate }) => {
-    try {
-      const targetSocketId = userSocketMap.get(to);
-      if (targetSocketId && candidate) {
-        io.to(targetSocketId).emit("ice-candidate", {
-          from: socket.userId,
-          candidate,
-        });
-      }
-    } catch (error) {
-      console.error("❌ Error forwarding ICE candidate:", error);
-    }
-  });
-
-  // Handle user disconnect
   socket.on("disconnect", () => {
     if (socket.userId && userSocketMap.has(socket.userId)) {
       userSocketMap.delete(socket.userId);

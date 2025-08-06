@@ -1,4 +1,10 @@
 const Category = require("./../Model/Category");
+const slugify = require("slugify");
+function generateRandomString(length = 6) {
+  return Math.random()
+    .toString(36)
+    .substring(2, 2 + length);
+}
 
 const AddCategory = async (name, description) => {
   try {
@@ -34,13 +40,27 @@ const ListOneCategory = async (id) => {
 
 const UpdateOneCatogry = async (id, name, description) => {
   try {
-    const data = await Category.updateOne(
-      { _id: id },
-      { name: name, description: description }
-    );
-    return data;
+    const category = await Category.findById(id);
+    if (!category) {
+      throw new Error("Category không tồn tại");
+    }
+
+    let updateData = { name, description };
+
+    // Nếu slug chưa có, tạo mới
+    if (!category.slug) {
+      const baseSlug = slugify(name, {
+        lower: true,
+        strict: true,
+      });
+      const randomSuffix = generateRandomString(5);
+      updateData.slug = `${baseSlug}-${randomSuffix}`;
+    }
+
+    const result = await Category.updateOne({ _id: id }, updateData);
+    return result;
   } catch (error) {
-    console.log(`Đã xảy ra lỗi:`, error);
+    console.log("Đã xảy ra lỗi:", error);
   }
 };
 

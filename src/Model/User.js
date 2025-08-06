@@ -26,9 +26,8 @@ const UserSchema = new mongoose.Schema(
     },
     permissions: {
       type: String,
-      enum: ["order_approval", "customer_support"],
+      enum: ["order_approval", "customer_support", "customer"],
     },
-
     cart: [{ type: mongoose.Schema.Types.ObjectId, ref: "Cart" }],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
     orders: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }],

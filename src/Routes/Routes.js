@@ -39,6 +39,7 @@ const {
   DeleteUser,
   sendOTP,
   verifyOTPAndRegister,
+  changeUserPassword,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -280,6 +281,7 @@ RouterAPI.put(
 RouterAPI.put("/changel-passsword", ChanglePasswordAPI);
 RouterAPI.post("/forgetpassword", Forgotpassword);
 RouterAPI.post("/refresh-token", RefreshToken);
+RouterAPI.put("/config-password", verifyToken, isAdmin, changeUserPassword);
 RouterAPI.delete("/delete-user/:id", verifyToken, isAdmin, DeleteUser);
 
 // Cart
