@@ -111,18 +111,46 @@ const {
   UpdateSupplierAPI,
   deleteSupplierAPI,
 } = require("../Controllers/Supplier");
+const {
+  CreateBannerController,
+  UpdateBannerController,
+  DeleteBannerController,
+  ListsBannerController,
+  FindOneBannerController,
+} = require("../Controllers/Banner");
 
-//product
 /**
  * @swagger
  * /products:
- *   get:
- *     summary: Lấy danh sách tất cả sản phẩm
+ *   post:
+ *     summary: Thêm mới một sản phẩm
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - price
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Áo sơ mi nam
+ *               price:
+ *                 type: number
+ *                 example: 250000
+ *               image:
+ *                 type: string
+ *                 format: binary
  *     responses:
- *       200:
- *         description: Thành công
+ *       201:
+ *         description: Tạo sản phẩm thành công
  */
+
 RouterAPI.get("/products", ListProductsAPI);
 
 /**
@@ -383,9 +411,95 @@ RouterAPI.post("/generate-ai-blog", generateBlogByGemini);
 
 // nhà cung cấp
 
+/**
+ * @swagger
+ * /create-supplier:
+ *   post:
+ *     summary: Thêm mới nhà cung cấp
+ *     tags: [Supplier]
+ *     responses:
+ *       201:
+ *         description: Tạo nhà cung  thành công
+ */
 RouterAPI.post("/create-supplier", verifyToken, isAdmin, CreateSupplierAPI);
+
+/**
+ * @swagger
+ * /supplier:
+ *   post:
+ *     summary: lấy danh sách nhà cung cấp
+ *     tags: [Supplier]
+ *     responses:
+ *       201:
+ *         description: Lấy danh sách nhà cung cấp thành công
+ */
 RouterAPI.get("/supplier", FindAllSupplierAPI);
+
 RouterAPI.get("/supplier-one/:id", FindOneIdSupplierAPI);
 RouterAPI.put("/update-supplier", verifyToken, isAdmin, UpdateSupplierAPI);
 RouterAPI.delete("/delete-supplier", verifyToken, isAdmin, deleteSupplierAPI);
+
+// Banner
+
+/**
+ * @swagger
+ * /create-banne:
+ *   post:
+ *     summary: Thêm mới một banner
+ *     tags: [Banner]
+ *     responses:
+ *       201:
+ *         description: Tạo banner thành công
+ */
+RouterAPI.post("/create-banner", CreateBannerController);
+
+/**
+ * @swagger
+ * /update-banner/:id:
+ *   put:
+ *     summary: Cập nhật banner
+ *     tags: [Banner]
+ *     responses:
+ *       201:
+ *         description:  Cập nhật banner thành công
+ */
+
+RouterAPI.put("/update-banner/:id", UpdateBannerController);
+
+/**
+ * @swagger
+ * /delete-banner/:id:
+ *   delete:
+ *     summary: Xóa banner
+ *     tags: [Banner]
+ *     responses:
+ *       201:
+ *         description: Xóa banner thành công
+ */
+RouterAPI.delete("/delete-banner/:id", DeleteBannerController);
+
+/**
+ * @swagger
+ * /banner:
+ *   get:
+ *     summary: lấy danh sách banner
+ *     tags: [Banner]
+ *     responses:
+ *       201:
+ *         description: Lấy danh sách banner thành công
+ */
+RouterAPI.get("/banner", ListsBannerController);
+
+/**
+ * @swagger
+ * /banner-id?id:
+ *   get:
+ *     summary: Lấy banner theo id
+ *     tags: [Banner]
+ *     responses:
+ *       201:
+ *         description:  Lấy banner theo id thành công
+ */
+RouterAPI.get("/banner-id", FindOneBannerController);
+
 module.exports = RouterAPI;

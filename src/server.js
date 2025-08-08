@@ -187,15 +187,10 @@ io.on("connection", (socket) => {
     });
 
     socket.join(userId);
-    console.log(`✅ Registered: ${userId} (${role}) - ${socket.id}`);
   });
   socket.on("disconnect", () => {
     if (socket.userId && userSocketMap.has(socket.userId)) {
       userSocketMap.delete(socket.userId);
-      console.log(
-        `👋 User disconnected: ${socket.userId} (socket: ${socket.id})`
-      );
-      console.log(`📊 Remaining connected users: ${userSocketMap.size}`);
     } else {
       console.log(`👋 Unknown socket disconnected: ${socket.id}`);
     }

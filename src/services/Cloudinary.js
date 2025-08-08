@@ -21,10 +21,6 @@ const uploadFileToCloudinary = async (files) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             public_id: `uploads/shoes-${Date.now()}`,
-            transformation: [
-              { width: 800, height: 800, crop: "fill" },
-              { quality: "auto" },
-            ],
           },
           (error, result) => {
             if (error) reject(error);

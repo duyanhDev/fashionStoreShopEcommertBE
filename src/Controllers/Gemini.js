@@ -112,8 +112,6 @@ Trả lời bằng tiếng Việt.
       return res.status(500).json({ error: "Không có phản hồi từ Gemini." });
     }
 
-    console.log("📄 Raw Gemini:", text);
-
     // Dùng jsonrepair để tự động sửa lỗi format
     const repairedJSON = jsonrepair(text);
     const parsed = JSON.parse(repairedJSON);

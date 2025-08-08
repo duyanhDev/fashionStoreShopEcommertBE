@@ -9,6 +9,20 @@ const options = {
       description: "API documentation for your backend",
     },
     servers: [{ url: "https://fashionstoreshopecommertbe.onrender.com" }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: [__dirname + "/../Routes/Routes.js"], // ✅ Chính xác
 };
