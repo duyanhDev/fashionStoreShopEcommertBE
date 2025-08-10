@@ -110,8 +110,12 @@ const addMultipleToCart = async (req, res) => {
     }
 
     for (const item of items) {
-      const { productId, quantity, size, color, price } = item.product;
+      const { _id, discountedPrice, price } = item.product;
+      let quantity = 1;
+      let size = "S";
+      let color = "đen";
 
+      const productId = _id;
       const product = await Product.findById(productId);
       if (!product) continue;
 
@@ -134,6 +138,7 @@ const addMultipleToCart = async (req, res) => {
           size,
           color,
           price,
+          discountedPrice,
           totalItemPrice: finalPrice * quantity,
         });
       }
