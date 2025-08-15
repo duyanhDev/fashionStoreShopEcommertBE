@@ -87,7 +87,7 @@ const LoginUserAPI = async (req, res) => {
     });
   } catch (error) {
     return res.status(400).json({
-      EC: 1,
+      EC: error.EC || 1, // Nếu error có EC riêng thì dùng
       message: error.message,
     });
   }

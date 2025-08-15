@@ -6,7 +6,7 @@ require("dotenv").config;
 const RegisterUser = async (name, email, password, isAdmin = false, avatar) => {
   try {
     const existingUser = await Users.findOne({ email });
-
+    console.log(existingUser);
     if (existingUser) {
       return {
         success: false,
@@ -34,9 +34,16 @@ const LoginUser = async (email, password) => {
     const user = await Users.findOne({ email });
 
     if (!user || !(await user.comparePassword(password))) {
-      throw new Error("Invalid credentials");
+      const err = new Error("Vui lòng nhập đúng mật khẩu hoặc tài khoản");
+      err.EC = 1;
+      throw err;
     }
 
+    if (user.isAccountLocked) {
+      const err = new Error("Tài khoản của bạn đã bị khóa");
+      err.EC = -1;
+      throw err;
+    }
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });

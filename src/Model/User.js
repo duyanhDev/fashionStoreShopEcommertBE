@@ -36,6 +36,7 @@ const UserSchema = new mongoose.Schema(
       enum: ["all", "newUser", "vip", "loyalCustomer"],
       default: "all",
     },
+    isAccountLocked: { type: Boolean, default: false },
     otp: { type: String },
     otpExpires: { type: Date },
     facebookId: { type: String, unique: true, sparse: true },
