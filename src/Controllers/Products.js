@@ -388,7 +388,7 @@ const UpdateProductsAPI = async (req, res) => {
         const currentColor = colorArray[i];
         const variant = findOrCreateVariant(currentColor);
         const resultImage = await uploadFileToCloudinary(files[i]);
-        variant.images.push({ url: resultImage.secure_url });
+        variant.images.push({ url: resultImage[0].secure_url });
 
         if (sizeArray.length > 0 && !hasUpdatedStock) {
           updateVariantSizes(variant, sizeArray, stock, isAddStock);
