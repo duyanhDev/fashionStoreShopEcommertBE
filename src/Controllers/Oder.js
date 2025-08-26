@@ -12,10 +12,11 @@ require("dotenv").config();
 const nodemailer = require("nodemailer");
 const axios = require("axios");
 const Transaction = require("../Model/transactionSchema");
+
 const config = {
-  app_id: "554",
-  key1: "8NdU5pG5R2spGHGhyO99HN1OhD8IQJBn",
-  key2: "uUfsWgfLkRLzq6W2uNXTCxrfxs51auny",
+  app_id: "2553",
+  key1: "PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL",
+  key2: "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz",
   endpoint: "https://sb-openapi.zalopay.vn/v2/create",
 };
 
@@ -606,88 +607,63 @@ const listOderUserId = async (req, res) => {
   }
 };
 
-// duyệt đơn hàng thành công
-const UpDateOrder = async (req, res) => {
+const UpDateConfirmed = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.body;
 
+    // Cập nhật trạng thái đơn hàng
     const order = await Order.findOneAndUpdate(
       { _id: id },
       {
-        orderStatus: "Delivered",
-        paymentStatus: "Completed",
+        orderStatus: "Confirmed",
       },
-      { new: true } // Chỉ định trả về đối tượng đã cập nhật
+      { new: true }
     );
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    // Lấy danh sách sản phẩm từ đơn hàng
     const productIdItem = order.items.map((item) => item.productId);
     const nameProduct = order.items.map((item) => item.name);
     const formattedProducts = productIdItem.map((id) => ({ productId: id }));
 
-    // Notification for user
+    // Tạo thông báo cho người dùng
     const userNotification = new Notifications({
       userId: order.userId,
       orderId: order._id,
       products: formattedProducts,
       isAdmin: false,
-      message: `Đơn hàng của bạn đang được shop xác nhận : ${nameProduct}`,
+      message: `Đơn hàng của bạn đã được người bán xác nhận đơn hàng: ${nameProduct.join(
+        ", "
+      )}`,
       isCheck: false,
       feedBack: true,
     });
+
     await userNotification.save();
-
-    for (const item of order.items) {
-      const product = await Product.findById(item.productId);
-
-      if (product) {
-        // Cập nhật tổng số lượng tồn kho và đã bán
-        product.stock = Math.max(product.stock - item.quantity, 0);
-        product.sold = (product.sold || 0) + item.quantity;
-
-        // Cập nhật theo biến thể (variant) và size
-        for (const variant of product.variants) {
-          if (variant.color === item.color) {
-            for (const size of variant.sizes) {
-              if (size.size === item.size) {
-                size.quantity = Math.max(size.quantity - item.quantity, 0);
-                size.sold = (size.sold || 0) + item.quantity;
-              }
-            }
-          }
-        }
-
-        // Lưu lại sản phẩm đã cập nhật
-        await product.save();
-      } else {
-        return res
-          .status(404)
-          .json({ message: `Product with ID ${item.productId} not found` });
-      }
-    }
-
     const io = req.app.get("io");
     io.emit(`order-update-${order.userId}`, {
       orderId: order._id,
       status: "Shipping",
       data: order,
-      message: `Đơn hàng của bạn đang được chờ shop chờ xác nhận: ${nameProduct.join(
+      message: `Đơn hàng của bạn đã được người bán xác nhận đơn hàng: ${nameProduct.join(
         ", "
       )}`,
     });
-    res
-      .status(200)
-      .json({ message: "Order status updated and stock updated successfully" });
+    // Phản hồi API thành công
+    return res.status(200).json({
+      message: "Order updated successfully",
+      order,
+    });
   } catch (error) {
     console.error("Error updating order:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// chờ giao hàng
+// Đơn hàng đã được giao cho GHN Express
 const UpDateDelivered = async (req, res) => {
   try {
     const { id } = req.body;
@@ -744,6 +720,86 @@ const UpDateDelivered = async (req, res) => {
   }
 };
 
+// Đơn hàng đang trên đường giao đến bạn
+const UpDateOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findOneAndUpdate(
+      { _id: id },
+      {
+        orderStatus: "Delivered",
+      },
+      { new: true } // Chỉ định trả về đối tượng đã cập nhật
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const productIdItem = order.items.map((item) => item.productId);
+    const nameProduct = order.items.map((item) => item.name);
+    const formattedProducts = productIdItem.map((id) => ({ productId: id }));
+
+    // Notification for user
+    const userNotification = new Notifications({
+      userId: order.userId,
+      orderId: order._id,
+      products: formattedProducts,
+      isAdmin: false,
+      message: `Đơn hàng đang trên đường giao đến bạn  : ${nameProduct}`,
+      isCheck: false,
+      feedBack: true,
+    });
+    await userNotification.save();
+
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId);
+
+      if (product) {
+        // Cập nhật tổng số lượng tồn kho và đã bán
+        product.stock = Math.max(product.stock - item.quantity, 0);
+        product.sold = (product.sold || 0) + item.quantity;
+
+        // Cập nhật theo biến thể (variant) và size
+        for (const variant of product.variants) {
+          if (variant.color === item.color) {
+            for (const size of variant.sizes) {
+              if (size.size === item.size) {
+                size.quantity = Math.max(size.quantity - item.quantity, 0);
+                size.sold = (size.sold || 0) + item.quantity;
+              }
+            }
+          }
+        }
+
+        // Lưu lại sản phẩm đã cập nhật
+        await product.save();
+      } else {
+        return res
+          .status(404)
+          .json({ message: `Product with ID ${item.productId} not found` });
+      }
+    }
+
+    const io = req.app.get("io");
+    io.emit(`order-update-${order.userId}`, {
+      orderId: order._id,
+      status: "Shipping",
+      data: order,
+      message: `Đơn hàng đang trên đường giao đến bạn: ${nameProduct.join(
+        ", "
+      )}`,
+    });
+    res
+      .status(200)
+      .json({ message: "Order status updated and stock updated successfully" });
+  } catch (error) {
+    console.error("Error updating order:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // giao hàng thành công
 const UpDateCompleted = async (req, res) => {
   try {
@@ -755,6 +811,7 @@ const UpDateCompleted = async (req, res) => {
       { _id: id },
       {
         orderStatus: "Completed",
+        paymentStatus: "Completed",
       },
       { new: true }
     );
@@ -998,11 +1055,12 @@ const filterOrdersByStatus = async (req, res) => {
 module.exports = {
   CreateOrder,
   listOderUserId,
-  UpDateOrder,
   getTotalProductsSold,
   getTotalProductsSoldByType,
   ListOderProducts,
   getOrderOneProduct,
+  UpDateOrder,
+  UpDateConfirmed,
   UpDateDelivered,
   UpDateCompleted,
   UpDateOrderStatus,

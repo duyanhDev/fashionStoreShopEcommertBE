@@ -60,6 +60,7 @@ const {
   UpDateCompleted,
   UpDateOrderStatus,
   filterOrdersByStatus,
+  UpDateConfirmed,
 } = require("../Controllers/Oder");
 
 const { searchProductsByNameAPI } = require("../Controllers/SearchProductsAPI");
@@ -323,17 +324,27 @@ RouterAPI.post("/order", CreateOrder);
 RouterAPI.get("/order/:userId", listOderUserId);
 RouterAPI.get("/get-total-products-sold", getTotalProductsSoldByType);
 RouterAPI.get("/get-quantity-all", getTotalProductsSold);
-RouterAPI.put(
-  "/order/:id",
+
+RouterAPI.post(
+  "/check-orderConfirmed",
   verifyToken,
   checkPermission("order_approval"),
-  UpDateOrder
-); // duyệt đơn hàng
+  UpDateConfirmed
+);
+
+// đơn hàng được giao đến bạn
 RouterAPI.post(
   "/check-orderShipping",
   verifyToken,
   checkPermission("order_approval"),
   UpDateDelivered
+);
+
+RouterAPI.put(
+  "/order/:id",
+  verifyToken,
+  checkPermission("order_approval"),
+  UpDateOrder
 );
 RouterAPI.post(
   "/check-orderCompleted",
@@ -341,7 +352,8 @@ RouterAPI.post(
   checkPermission("order_approval"),
   UpDateCompleted
 );
-RouterAPI.put("/update-order/:id", UpDateOrderStatus); // cập nhật trạng thái đơn hàng order_approval
+
+RouterAPI.put("/update-order/:id", UpDateOrderStatus); // cập nhật trạng thái đơn hàng order_approval users
 
 RouterAPI.put(
   "/update-order-admin/:id",

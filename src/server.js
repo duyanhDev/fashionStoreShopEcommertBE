@@ -176,27 +176,30 @@ app.set("io", io);
 
 const userSocketMap = new Map();
 
+let OnlineCount = 0;
 io.on("connection", (socket) => {
-  socket.on("register", ({ userId, role }) => {
+  console.log("User connected:", socket.id);
+
+  OnlineCount++;
+
+  io.emit("updateOnlineCount", OnlineCount);
+
+  socket.on("register", ({ userId }) => {
     socket.userId = userId;
-    socket.role = role;
-
-    userSocketMap.set(userId, {
-      socketId: socket.id,
-      role: role,
-    });
-
+    userSocketMap.set(userId, socket.id);
     socket.join(userId);
+    console.log(`User registered: ${userId} with socketId: ${socket.id}`);
   });
+
   socket.on("disconnect", () => {
-    if (socket.userId && userSocketMap.has(socket.userId)) {
+    OnlineCount--;
+    io.emit("updateOnlineCount", OnlineCount);
+    if (socket.userId) {
       userSocketMap.delete(socket.userId);
-    } else {
-      console.log(`👋 Unknown socket disconnected: ${socket.id}`);
     }
+    console.log("User disconnected:", socket.id);
   });
 });
-
 // Kết nối DB và khởi động server
 (async () => {
   try {
