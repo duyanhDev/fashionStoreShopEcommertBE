@@ -100,6 +100,7 @@ const {
   createBlogController,
   updateBlogController,
   getAllBlogController,
+  getDetailSlugController,
 } = require("../Controllers/Blog");
 const {
   handleGeminiRequest,
@@ -119,6 +120,7 @@ const {
   ListsBannerController,
   FindOneBannerController,
 } = require("../Controllers/Banner");
+const { getRevenue } = require("../Controllers/Transaction");
 
 /**
  * @swagger
@@ -416,7 +418,9 @@ RouterAPI.post("/remove-wishlist", RemoveToWishList);
 RouterAPI.post("/create-blog", createBlogController);
 RouterAPI.put("/post-view/:slug", updateBlogController);
 RouterAPI.get("/all-blog", getAllBlogController);
+RouterAPI.get("/blog/:slug", getDetailSlugController);
 
+// AI
 RouterAPI.post("/ChatAI", BotChatAPI);
 RouterAPI.post("/genminiAi", handleGeminiRequest);
 RouterAPI.post("/generate-ai-blog", generateBlogByGemini);
@@ -514,4 +518,6 @@ RouterAPI.get("/banner", ListsBannerController);
  */
 RouterAPI.get("/banner-id", FindOneBannerController);
 
+// Api doanh thu
+RouterAPI.get("/revenue/total", getRevenue);
 module.exports = RouterAPI;

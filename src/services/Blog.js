@@ -15,6 +15,12 @@ const getAllBlog = async () => {
   }
 };
 
+const getDetailSlug = async (slug) => {
+  const data = await BlogModel.findOne({ slug: slug }).populate("userId");
+
+  return data;
+};
+
 const CreateBlog = async ({
   title,
   tip,
@@ -39,6 +45,8 @@ const CreateBlog = async ({
   // Nếu có ảnh gửi lên
   if (files) {
     const imgFiles = Array.isArray(files) ? files : [files];
+
+    console.log(imgFiles);
 
     for (const file of imgFiles) {
       const results = await uploadFileToCloudinary(file); // <- Trả về mảng
@@ -90,4 +98,5 @@ module.exports = {
   CreateBlog,
   updateBlogView,
   getAllBlog,
+  getDetailSlug,
 };

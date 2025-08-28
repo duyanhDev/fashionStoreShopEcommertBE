@@ -1,4 +1,9 @@
-const { CreateBlog, updateBlogView, getAllBlog } = require("../services/Blog");
+const {
+  CreateBlog,
+  updateBlogView,
+  getAllBlog,
+  getDetailSlug,
+} = require("../services/Blog");
 
 const createBlogController = async (req, res) => {
   try {
@@ -44,8 +49,23 @@ const getAllBlogController = async (req, res) => {
     console.log(error);
   }
 };
+
+const getDetailSlugController = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const data = await getDetailSlug(slug);
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 module.exports = {
   createBlogController,
   updateBlogController,
   getAllBlogController,
+  getDetailSlugController,
 };
