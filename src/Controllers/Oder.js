@@ -643,6 +643,35 @@ const UpDateConfirmed = async (req, res) => {
     });
 
     await userNotification.save();
+
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId);
+
+      if (product) {
+        // Cập nhật tổng số lượng tồn kho và đã bán
+        product.stock = Math.max(product.stock - item.quantity, 0);
+        product.sold = (product.sold || 0) + item.quantity;
+
+        // Cập nhật theo biến thể (variant) và size
+        for (const variant of product.variants) {
+          if (variant.color === item.color) {
+            for (const size of variant.sizes) {
+              if (size.size === item.size) {
+                size.quantity = Math.max(size.quantity - item.quantity, 0);
+                size.sold = (size.sold || 0) + item.quantity;
+              }
+            }
+          }
+        }
+
+        // Lưu lại sản phẩm đã cập nhật
+        await product.save();
+      } else {
+        return res
+          .status(404)
+          .json({ message: `Product with ID ${item.productId} not found` });
+      }
+    }
     const io = req.app.get("io");
     io.emit(`order-update-${order.userId}`, {
       orderId: order._id,
@@ -752,35 +781,6 @@ const UpDateOrder = async (req, res) => {
       feedBack: true,
     });
     await userNotification.save();
-
-    for (const item of order.items) {
-      const product = await Product.findById(item.productId);
-
-      if (product) {
-        // Cập nhật tổng số lượng tồn kho và đã bán
-        product.stock = Math.max(product.stock - item.quantity, 0);
-        product.sold = (product.sold || 0) + item.quantity;
-
-        // Cập nhật theo biến thể (variant) và size
-        for (const variant of product.variants) {
-          if (variant.color === item.color) {
-            for (const size of variant.sizes) {
-              if (size.size === item.size) {
-                size.quantity = Math.max(size.quantity - item.quantity, 0);
-                size.sold = (size.sold || 0) + item.quantity;
-              }
-            }
-          }
-        }
-
-        // Lưu lại sản phẩm đã cập nhật
-        await product.save();
-      } else {
-        return res
-          .status(404)
-          .json({ message: `Product with ID ${item.productId} not found` });
-      }
-    }
 
     const io = req.app.get("io");
     io.emit(`order-update-${order.userId}`, {

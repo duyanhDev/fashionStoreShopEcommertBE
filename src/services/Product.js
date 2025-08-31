@@ -233,6 +233,7 @@ const ProductFilter = async ({
   size,
   color,
   view,
+  brand,
   page = 1,
 }) => {
   try {
@@ -243,6 +244,7 @@ const ProductFilter = async ({
     const filter = {};
     if (gender) filter.gender = gender;
     if (category) filter.category = category;
+    if (brand) filter.brand = brand;
     if (minPrice || maxPrice) {
       filter.discountedPrice = {};
       if (minPrice) filter.discountedPrice.$gte = Number(minPrice);
@@ -291,8 +293,6 @@ const ProductFilter = async ({
       Products.find(filter).sort(sortCriteria).skip(skip).limit(perPage),
       Products.countDocuments(filter),
     ]);
-
-    console.log("products", count);
 
     // Tính tổng số trang
     const totalPages = Math.ceil(count / perPage);

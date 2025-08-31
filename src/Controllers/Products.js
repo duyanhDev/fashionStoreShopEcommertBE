@@ -593,6 +593,7 @@ const CategoryGenderAPI = async (req, res) => {
     size,
     color,
     view,
+    brand,
   } = req.query;
 
   try {
@@ -610,6 +611,7 @@ const CategoryGenderAPI = async (req, res) => {
       color,
       page,
       view,
+      brand,
     });
 
     return res.status(200).json({

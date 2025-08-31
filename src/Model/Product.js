@@ -23,6 +23,7 @@ const productSchema = new mongoose.Schema({
   discount: { type: Number, default: 0 },
   discountedPrice: Number,
   stock: { type: Number, default: 0 },
+  reserved: { type: Number, default: 0 }, // số lượng đang giữ
   sold: { type: Number, default: 0 },
   variants: [
     {
