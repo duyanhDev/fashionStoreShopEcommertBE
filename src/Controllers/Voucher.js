@@ -24,14 +24,6 @@ const addVoucherAPI = async (req, res) => {
     if (!code || !discountType || !discountValue || !startDate || !endDate) {
       return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc" });
     }
-    startDate = new Date(startDate);
-    endDate = new Date(endDate);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res
-        .status(400)
-        .json({ message: "Ngày bắt đầu hoặc ngày kết thúc không hợp lệ." });
-    }
 
     // Tạo object voucher
     const voucherData = {
