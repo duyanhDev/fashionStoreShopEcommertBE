@@ -40,6 +40,7 @@ const {
   sendOTP,
   verifyOTPAndRegister,
   changeUserPassword,
+  getRandomAdminAPI,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -314,6 +315,10 @@ RouterAPI.post("/forgetpassword", Forgotpassword);
 RouterAPI.post("/refresh-token", RefreshToken);
 RouterAPI.put("/config-password", verifyToken, isAdmin, changeUserPassword);
 RouterAPI.delete("/delete-user/:id", verifyToken, isAdmin, DeleteUser);
+
+// random id admin
+
+RouterAPI.get("/admins", getRandomAdminAPI);
 
 // Cart
 RouterAPI.post("/cart", addToCart);

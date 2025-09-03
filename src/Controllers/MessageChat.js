@@ -79,6 +79,7 @@ const sendMessageToAdminAPI = async (req, res) => {
 
       for (const file of files) {
         const resultImage = await uploadFileToCloudinary(file);
+        console.log("resultImage", resultImage);
 
         resultImage.forEach((images) => {
           imageUrl.push(images.secure_url);
@@ -196,6 +197,7 @@ const getMessagesList = async (req, res) => {
 const UpdateStatusIsRead = async (req, res) => {
   try {
     const { sender, recipient } = req.body;
+    console.log(recipient, sender);
 
     // Kiểm tra sender và recipient
     if (!sender || !recipient) {
@@ -207,6 +209,8 @@ const UpdateStatusIsRead = async (req, res) => {
       { sender, recipient, isRead: false }, // Chỉ cập nhật tin nhắn chưa đọc
       { $set: { isRead: true } } // Cập nhật trường isRead thành true
     );
+
+    console.log(result);
 
     // Kiểm tra nếu không có tin nhắn nào được cập nhật
     if (result.modifiedCount === 0) {

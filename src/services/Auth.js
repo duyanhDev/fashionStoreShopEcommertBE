@@ -83,8 +83,24 @@ const RefreshToken = async (req, res) => {
   }
 };
 
+const getRandomAdmin = async () => {
+  try {
+    const admins = await Users.find({
+      $or: [
+        { role: "admin" }, // lấy tất cả admin
+        { role: "staff", permissions: "customer_support" }, // chỉ staff thỏa điều kiện
+      ],
+    }).select("_id name role");
+
+    return admins;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 module.exports = {
   RegisterUser,
   LoginUser,
   RefreshToken,
+  getRandomAdmin,
 };

@@ -1,5 +1,9 @@
 const { uploadFileToCloudinary } = require("./../services/Cloudinary");
-const { RegisterUser, LoginUser } = require("./../services/Auth");
+const {
+  RegisterUser,
+  LoginUser,
+  getRandomAdmin,
+} = require("./../services/Auth");
 const Users = require("./../Model/User");
 const Product = require("./../Model/Product");
 const nodemailer = require("nodemailer");
@@ -136,7 +140,24 @@ const UpDateProfileUserAPI = async (req, res) => {
       permissions,
     } = req.body;
 
+    console.log(
+      id,
+      name,
+      city,
+      district,
+      ward,
+      phone,
+      gender,
+      dateOfBirth,
+      height,
+      weight,
+      role,
+      permissions
+    );
+
     const avatar = req.files?.avatar;
+
+    console.log(avatar);
 
     // Tìm người dùng
     const UpdateUser = await Users.findById(id);
@@ -169,6 +190,8 @@ const UpDateProfileUserAPI = async (req, res) => {
 
     // Nếu có avatar mới
     if (avatar) {
+      console.log(avatar);
+
       try {
         const result = await uploadFileToCloudinary(avatar);
         updatedData.avatar = result[0].secure_url;
@@ -398,6 +421,18 @@ const changeUserPassword = async (req, res) => {
   }
 };
 
+const getRandomAdminAPI = async (req, res) => {
+  try {
+    const data = await getRandomAdmin();
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 module.exports = {
   RegisterUserAPI,
   LoginUserAPI,
@@ -410,4 +445,5 @@ module.exports = {
   sendOTP,
   verifyOTPAndRegister,
   changeUserPassword,
+  getRandomAdminAPI,
 };
