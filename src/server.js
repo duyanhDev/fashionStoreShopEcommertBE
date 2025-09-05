@@ -202,6 +202,38 @@ io.on("connection", (socket) => {
   });
 });
 // Kết nối DB và khởi động server
+
+app.post("/api/sepay/webhook", (req, res) => {
+  const receivedSignature = req.headers["x-sepay-signature"];
+  const secretKey = process.env.SEPAY_SECRET_KEY;
+
+  // verify signature (giả lập)
+  const hash = crypto
+    .createHmac("sha256", secretKey)
+    .update(JSON.stringify(req.body))
+    .digest("hex");
+
+  if (hash !== receivedSignature) {
+    return res.status(400).json({ message: "Invalid signature" });
+  }
+
+  const { amount, description, status } = req.body;
+  console.log("📥 Webhook Sepay nhận:", req.body);
+
+  if (status === "success") {
+    const orderIdMatch = description.match(/Order(\d+)/);
+    const orderId = orderIdMatch ? orderIdMatch[1] : null;
+    if (orderId) {
+      // TODO: cập nhật DB → order đã thanh toán
+      console.log(
+        `✅ Order ${orderId} thanh toán thành công, số tiền: ${amount}`
+      );
+    }
+  }
+
+  res.status(200).json({ message: "OK" });
+});
+
 (async () => {
   try {
     await connectDB();
