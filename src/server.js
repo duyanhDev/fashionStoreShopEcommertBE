@@ -16,6 +16,7 @@ const passport = require("passport");
 const configurePassport = require("./Config/passport");
 const authRoutes = require("./Routes/auth");
 const session = require("express-session");
+const startCron = require("./Cron/cron"); // file chứa cron
 // Cấu hình CORS cho Socket.IO
 const io = new Server(server, {
   cors: {
@@ -204,6 +205,7 @@ io.on("connection", (socket) => {
 (async () => {
   try {
     await connectDB();
+    startCron();
     server.listen(port, () => {
       console.log(`Backend zero app listening on port ${port}`);
     });

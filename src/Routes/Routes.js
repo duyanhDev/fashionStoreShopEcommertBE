@@ -41,6 +41,8 @@ const {
   verifyOTPAndRegister,
   changeUserPassword,
   getRandomAdminAPI,
+  ResetPassword,
+  checkRestToken,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -312,6 +314,8 @@ RouterAPI.put(
 );
 RouterAPI.put("/changel-passsword", ChanglePasswordAPI);
 RouterAPI.post("/forgetpassword", Forgotpassword);
+RouterAPI.post("/reset-password", ResetPassword);
+RouterAPI.get("/check-reset-token/:token", checkRestToken);
 RouterAPI.post("/refresh-token", RefreshToken);
 RouterAPI.put("/config-password", verifyToken, isAdmin, changeUserPassword);
 RouterAPI.delete("/delete-user/:id", verifyToken, isAdmin, DeleteUser);

@@ -7,6 +7,8 @@ const {
 const Users = require("./../Model/User");
 const Product = require("./../Model/Product");
 const nodemailer = require("nodemailer");
+const jwt = require("jsonwebtoken");
+const ResetToken = require("../Model/ResetToken");
 require("dotenv").config;
 
 const transporter = nodemailer.createTransport({
@@ -259,6 +261,28 @@ const Forgotpassword = async (req, res) => {
       return res.status(400).json({ error: "Email không tồn tại" });
     }
 
+    // tạo token ngẫu nhiên
+
+    const token = jwt.sign(
+      {
+        _id: user._id,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "10m",
+      }
+    );
+
+    // Lưu token vào DB
+    const resetToken = new ResetToken({
+      userId: user._id,
+      token,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 phút
+    });
+    await resetToken.save();
+
+    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+
     // Thiết lập transporter để gửi email
     let transporter = nodemailer.createTransport({
       service: "Gmail",
@@ -268,41 +292,97 @@ const Forgotpassword = async (req, res) => {
       },
     });
 
-    // Tạo mật khẩu mới
-    function generatePassword(length = 8) {
-      const charset =
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      let retVal = "";
-      for (let i = 0; i < length; i++) {
-        retVal += charset.charAt(Math.floor(Math.random() * charset.length));
-      }
-      return retVal;
-    }
-    const newPassword = generatePassword(); // Mật khẩu bạn tạo
-
     // Thiết lập thông tin email
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"Shop Duy Anh" <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: "Mật khẩu mới của bạn",
-      html: `<p>Mật khẩu mới của bạn là: <strong>${newPassword}</strong></p>`, // Gửi mật khẩu gốc cho người dùng qua email
+      subject: "Reset mật khẩu",
+      html: `<p>Nhấn vào link để đặt lại mật khẩu (10 phút):</p><a href="${resetLink}">${resetLink}</a>`,
     };
 
     // Gửi email
     await transporter.sendMail(mailOptions);
 
-    // Cập nhật mật khẩu đã mã hóa vào cơ sở dữ liệu
-    user.password = newPassword;
-    await user.save();
-
-    return res
-      .status(200)
-      .json({ message: "Mật khẩu mới đã được gửi tới email của bạn" });
+    return res.json({ message: "Đã gửi email reset password" });
   } catch (error) {
     console.error(error);
     return res
       .status(500)
       .json({ error: "Đã xảy ra lỗi, vui lòng thử lại sau" });
+  }
+};
+
+const ResetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res
+      .status(400)
+      .json({ EC: 1, message: "Thiếu token hoặc mật khẩu mới" });
+  }
+
+  try {
+    // Kiểm tra token trong DB
+    const resetToken = await ResetToken.findOne({ token });
+    if (!resetToken) {
+      return res
+        .status(400)
+        .json({ EC: 1, message: "Token không hợp lệ hoặc đã sử dụng" });
+    }
+
+    // Xác thực token bằng JWT
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    console.log(payload);
+
+    // Tìm user
+    const user = await Users.findById(payload._id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ EC: 1, message: "Người dùng không tồn tại" });
+    }
+
+    // Hash mật khẩu mới
+
+    user.password = newPassword;
+    await user.save();
+
+    // Xoá token để không dùng lại
+    await ResetToken.deleteOne({ _id: resetToken._id });
+
+    return res.json({ EC: 0, message: "Đặt lại mật khẩu thành công" });
+  } catch (err) {
+    console.error("Lỗi reset mật khẩu:", err);
+    return res
+      .status(400)
+      .json({ EC: 1, message: "Token hết hạn hoặc không hợp lệ" });
+  }
+};
+
+const checkRestToken = async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    // Tìm trong DB
+    const resetToken = await ResetToken.findOne({ token });
+    if (!resetToken) {
+      return res
+        .status(400)
+        .json({ valid: false, message: "Token không tồn tại hoặc đã dùng" });
+    }
+
+    // Verify JWT có hết hạn chưa
+    try {
+      jwt.verify(token, process.env.JWT_SECRET);
+      return res.json({ valid: true, message: "Token hợp lệ" });
+    } catch (err) {
+      return res
+        .status(400)
+        .json({ valid: false, message: "Token đã hết hạn" });
+    }
+  } catch (err) {
+    return res.status(500).json({ valid: false, message: "Lỗi server" });
   }
 };
 
@@ -441,9 +521,11 @@ module.exports = {
   UpDateProfileUserAPI,
   ChanglePasswordAPI,
   Forgotpassword,
+  ResetPassword,
   DeleteUser,
   sendOTP,
   verifyOTPAndRegister,
   changeUserPassword,
   getRandomAdminAPI,
+  checkRestToken,
 };
