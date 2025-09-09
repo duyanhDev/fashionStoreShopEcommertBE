@@ -253,7 +253,7 @@ class OrderService {
     await voucher.save();
   }
 
-  async createNotifications(order, userId) {
+  async createNotifications(order, userId, username) {
     const nameProduct = order.items.map((item) => item.name);
     const productIdItem = order.items.map((item) => item.productId);
     const formattedProducts = productIdItem.map((id) => ({ productId: id }));
@@ -279,7 +279,7 @@ class OrderService {
         orderId: order._id,
         products: formattedProducts,
         isAdmin: true,
-        message: `Có một đơn hàng mới từ người dùng [Tên người dùng].`,
+        message: `Có một đơn hàng mới từ người dùng là ${username}.`,
         isCheck: true,
       });
 
@@ -630,7 +630,8 @@ const CreateOrder = async (req, res) => {
     // Create notifications
     const { nameProduct } = await orderService.createNotifications(
       newOrder,
-      userId
+      userId,
+      username
     );
 
     // Emit socket event
