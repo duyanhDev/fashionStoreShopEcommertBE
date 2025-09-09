@@ -33,8 +33,8 @@ const UserSchema = new mongoose.Schema(
     orders: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }],
     userGroup: {
       type: String,
-      enum: ["all", "newUser", "vip", "loyalCustomer"],
-      default: "all",
+      enum: ["newUser", "regular", "vip", "loyalCustomer", "elite"],
+      default: "newUser",
     },
     isAccountLocked: { type: Boolean, default: false },
     otp: { type: String },
@@ -48,14 +48,17 @@ UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
   if (this.totalPrice >= 100000000) {
+    this.userGroup = "elite";
+  } else if (this.totalPrice >= 50000000) {
     this.userGroup = "loyalCustomer";
   } else if (this.totalPrice >= 10000000) {
     this.userGroup = "vip";
   } else if (this.totalPrice >= 1000000) {
-    this.userGroup = "newUser";
+    this.userGroup = "regular";
   } else {
-    this.userGroup = "all";
+    this.userGroup = "newUser";
   }
+
   next();
 });
 

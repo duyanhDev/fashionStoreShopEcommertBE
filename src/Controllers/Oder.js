@@ -13,6 +13,15 @@ const nodemailer = require("nodemailer");
 const axios = require("axios");
 const Transaction = require("../Model/transactionSchema");
 
+const SEPAY_CONFIG = {
+  storeSubdomain: "dtda", // Subdomain cửa hàng bạn trên SePay
+  apiToken: "QEDOVHB13DODXJPLEWBW2TZ38CVXY5CKANS2AMKHIGSTKUX7SOYIPZHJRFSNJYIB", // Lấy từ dashboard SePay
+  accountNumber: "96247609",
+  accountName: "DANG TRINH DUY ANH",
+  bankCode: "BIDV",
+  webhookSecret: "https://6e55dcc2f48f.ngrok-free.app/sepay/callback",
+};
+
 const config = {
   app_id: "2553",
   key1: "PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL",
@@ -25,6 +34,7 @@ const PAYMENT_METHODS = {
   MOMO: "momo",
   ZALOPAY: "ZaloPay",
   COD: "cod",
+  SEPAY: "sepay",
 };
 
 const PAYMENT_STATUS = {
@@ -283,7 +293,7 @@ class OrderService {
     const appTime = Date.now();
 
     const embed_data = {
-      redirecturl: "http://localhost:5173/",
+      redirecturl: "http://localhost:5173/vnpay_return",
       merchantinfo: "Doisin Store",
       promotioninfo: "",
       redirectdata: "",
@@ -443,6 +453,89 @@ class OrderService {
     };
   }
 
+  // Hàm xử lý thanh toán
+
+  async processSePayPayment(totalAmount, orderId) {
+    try {
+      console.log(
+        `Creating payment QR for Order ${orderId}, Amount: ${totalAmount}`
+      );
+      const transferContent = `ORDER${orderId}`; // Thay vì ORDER_${orderId}
+
+      // ✅ TẠO QR CODE SỬ DỤNG VIETQR (KHÔNG CẦN API SEPAY)
+      const qrUrl =
+        `https://img.vietqr.io/image/` +
+        `${SEPAY_CONFIG.bankCode}-${SEPAY_CONFIG.accountNumber}-compact2.jpg?` +
+        `amount=${totalAmount}&` +
+        `addInfo=${encodeURIComponent(transferContent)}&` +
+        `accountName=${encodeURIComponent(SEPAY_CONFIG.accountName)}`;
+
+      // ALTERNATIVE: SePay QR generator
+      const sePayQrUrl =
+        `https://qr.sepay.vn/img?` +
+        `acc=${encodeURIComponent(SEPAY_CONFIG.accountNumber)}&` +
+        `bank=${encodeURIComponent(SEPAY_CONFIG.bankCode)}&` +
+        `amount=${encodeURIComponent(totalAmount)}&` +
+        `des=${encodeURIComponent(transferContent)}`;
+
+      console.log("✅ QR URL generated:", qrUrl);
+
+      return {
+        EC: 0,
+        success: true,
+        qrCodeUrl: qrUrl, // Dùng VietQR (ổn định hơn)
+        sePayQrUrl: sePayQrUrl, // Backup SePay QR
+        paymentCode: transferContent,
+        amount: totalAmount,
+        content: transferContent,
+        orderId: orderId,
+        accountInfo: {
+          accountNumber: SEPAY_CONFIG.accountNumber,
+          accountName: SEPAY_CONFIG.accountName,
+          bankCode: SEPAY_CONFIG.bankCode,
+          bankName: SEPAY_CONFIG.bankName,
+        },
+        instructions: {
+          step1: "Mở ứng dụng ngân hàng trên điện thoại",
+          step2: "Quét mã QR Code bên dưới",
+          step3: "Kiểm tra thông tin và xác nhận chuyển tiền",
+          step4: `Nội dung CK: ${transferContent}`,
+          step5: "Đợi vài giây để hệ thống xác nhận thanh toán",
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error creating payment QR:", error);
+      return {
+        success: false,
+        message: "Không thể tạo mã QR thanh toán",
+        error: error.message,
+      };
+    }
+  }
+
+  async deductStock(items) {
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) continue;
+
+      product.stock = Math.max(product.stock - item.quantity, 0);
+      product.sold = (product.sold || 0) + item.quantity;
+
+      for (const variant of product.variants) {
+        if (variant.color === item.color) {
+          for (const size of variant.sizes) {
+            if (size.size === item.size) {
+              size.quantity = Math.max(size.quantity - item.quantity, 0);
+              size.sold = (size.sold || 0) + item.quantity;
+            }
+          }
+        }
+      }
+
+      await product.save();
+    }
+  }
+
   sortObject(obj) {
     const sorted = {};
     const str = [];
@@ -515,6 +608,7 @@ const CreateOrder = async (req, res) => {
         PAYMENT_METHODS.VNPAY,
         PAYMENT_METHODS.MOMO,
         PAYMENT_METHODS.ZALOPAY,
+        PAYMENT_METHODS.SEPAY,
       ].includes(paymentMethod)
         ? PAYMENT_STATUS.COMPLETED
         : PAYMENT_STATUS.PENDING,
@@ -528,7 +622,6 @@ const CreateOrder = async (req, res) => {
     }
 
     // Update cart
-    await orderService.updateCartItems(CartId, idItems);
 
     // Update voucher usage
     await orderService.updateVoucherUsage(idDiscount, userId);
@@ -553,23 +646,104 @@ const CreateOrder = async (req, res) => {
     // Handle payment methods
     switch (paymentMethod) {
       case PAYMENT_METHODS.ZALOPAY:
-        return res
-          .status(200)
-          .json(
-            await orderService.processZaloPayPayment(totalAmount, newOrder)
+        try {
+          const ZaloPayResult = await orderService.processZaloPayPayment(
+            totalAmount,
+            newOrder
           );
+          console.log(ZaloPayResult);
+
+          // Kiểm tra kết quả
+          if (ZaloPayResult.EC === 0) {
+            // Thanh toán thành công
+            await orderService.deductStock(items);
+            newOrder.paymentStatus = PAYMENT_STATUS.COMPLETED;
+            await orderService.updateCartItems(CartId, idItems);
+            await newOrder.save();
+          }
+
+          return res.status(200).json(ZaloPayResult);
+        } catch (err) {
+          console.error("ZaloPay payment error:", err.message);
+          newOrder.paymentStatus = PAYMENT_STATUS.PENDING;
+          await newOrder.save();
+          return res.status(500).json({
+            message: "ZaloPay payment failed",
+            error: err.message,
+          });
+        }
 
       case PAYMENT_METHODS.VNPAY:
-        return res
-          .status(200)
-          .json(await orderService.processVNPayPayment(totalAmount));
+        try {
+          const vnpResult = await orderService.processVNPayPayment(totalAmount);
+          console.log(vnpResult);
+
+          if (vnpResult.EC === 0) {
+            await orderService.deductStock(items);
+            await orderService.updateCartItems(CartId, idItems);
+            newOrder.paymentStatus = PAYMENT_STATUS.COMPLETED;
+          }
+
+          // VNPay trả về URL thanh toán, chưa trừ stock
+          return res.status(200).json(vnpResult);
+          // Stock sẽ được trừ trong callback khi vnp_ResponseCode === "00"
+        } catch (err) {
+          return res.status(500).json({
+            message: "VNPay payment failed",
+            error: err.message,
+          });
+        }
 
       case PAYMENT_METHODS.MOMO:
-        return res
-          .status(200)
-          .json(await orderService.processMoMoPayment(totalAmount));
+        try {
+          const momoResult = await orderService.processMoMoPayment(totalAmount);
+
+          // Kiểm tra kết quả thanh toán
+          if (momoResult?.data?.resultCode === 0) {
+            await orderService.deductStock(items);
+            newOrder.paymentStatus = PAYMENT_STATUS.COMPLETED;
+            await orderService.updateCartItems(CartId, idItems);
+            await newOrder.save();
+          }
+
+          return res.status(200).json(momoResult);
+        } catch (err) {
+          return res.status(500).json({
+            message: "MoMo payment failed",
+            error: err.message,
+          });
+        }
+
+      case PAYMENT_METHODS.SEPAY:
+        try {
+          const momoResult = await orderService.processSePayPayment(
+            totalAmount,
+            newOrder._id
+          );
+
+          console.log(momoResult);
+
+          // Kiểm tra kết quả thanh toán
+          if (momoResult.EC === 0) {
+            await orderService.deductStock(items);
+            await orderService.updateCartItems(CartId, idItems);
+            await newOrder.save();
+          }
+
+          return res.status(200).json(momoResult);
+        } catch (err) {
+          return res.status(500).json({
+            message: "MoMo payment failed",
+            error: err.message,
+          });
+        }
 
       case PAYMENT_METHODS.COD:
+        // COD trừ stock ngay lập tức
+        await orderService.deductStock(items);
+        newOrder.paymentStatus = PAYMENT_STATUS.PENDING;
+        await orderService.updateCartItems(CartId, idItems);
+        await newOrder.save();
         return res.status(200).json({
           EC: 0,
           message:
@@ -643,35 +817,6 @@ const UpDateConfirmed = async (req, res) => {
     });
 
     await userNotification.save();
-
-    for (const item of order.items) {
-      const product = await Product.findById(item.productId);
-
-      if (product) {
-        // Cập nhật tổng số lượng tồn kho và đã bán
-        product.stock = Math.max(product.stock - item.quantity, 0);
-        product.sold = (product.sold || 0) + item.quantity;
-
-        // Cập nhật theo biến thể (variant) và size
-        for (const variant of product.variants) {
-          if (variant.color === item.color) {
-            for (const size of variant.sizes) {
-              if (size.size === item.size) {
-                size.quantity = Math.max(size.quantity - item.quantity, 0);
-                size.sold = (size.sold || 0) + item.quantity;
-              }
-            }
-          }
-        }
-
-        // Lưu lại sản phẩm đã cập nhật
-        await product.save();
-      } else {
-        return res
-          .status(404)
-          .json({ message: `Product with ID ${item.productId} not found` });
-      }
-    }
     const io = req.app.get("io");
     io.emit(`order-update-${order.userId}`, {
       orderId: order._id,
@@ -681,6 +826,7 @@ const UpDateConfirmed = async (req, res) => {
         ", "
       )}`,
     });
+
     // Phản hồi API thành công
     return res.status(200).json({
       message: "Order updated successfully",
@@ -1013,6 +1159,104 @@ const UpDateOrderStatus = async (req, res) => {
       { new: true } // Chỉ định trả về đối tượng đã cập nhật
     );
 
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId);
+
+      if (product) {
+        // Cập nhật tổng số lượng tồn kho và đã bán
+        product.stock = Math.max(product.stock + item.quantity, 0);
+        product.sold = (product.sold || 0) + item.quantity;
+
+        // Cập nhật theo biến thể (variant) và size
+        for (const variant of product.variants) {
+          if (variant.color === item.color) {
+            for (const size of variant.sizes) {
+              if (size.size === item.size) {
+                size.quantity = Math.max(size.quantity + item.quantity, 0);
+                size.sold = (size.sold || 0) + item.quantity;
+              }
+            }
+          }
+        }
+
+        // Lưu lại sản phẩm đã cập nhật
+        await product.save();
+      } else {
+        return res
+          .status(404)
+          .json({ message: `Product with ID ${item.productId} not found` });
+      }
+    }
+
+    return res.status(200).json({
+      EC: 0,
+      message: "Order status updated successfully",
+      data: order,
+    });
+  } catch (error) {}
+};
+
+const createRepurchaseOrder = async (req, res) => {
+  try {
+    let { id } = req.params;
+
+    let orderStatus = req.body.orderStatus;
+
+    if (!id || !orderStatus) {
+      return res
+        .status(400)
+        .json({ message: "All required fields must be provided." });
+    }
+
+    if (!orderStatus) {
+      return res.status(400).json({
+        message: "Invalid order status. Only 'Cancelled' is allowed.",
+      });
+    }
+
+    // socker
+
+    const io = req.app.get("io");
+    io.emit(`order-update-chase-${id}`, {
+      orderId: id,
+      status: orderStatus,
+      message: `Đơn hàng của bạn đã bị hủy`,
+    });
+    const order = await Order.findOneAndUpdate(
+      { _id: id },
+      { orderStatus: orderStatus },
+      { new: true } // Chỉ định trả về đối tượng đã cập nhật
+    );
+
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId);
+
+      if (product) {
+        // Cập nhật tổng số lượng tồn kho và đã bán
+        product.stock = Math.max(product.stock - item.quantity, 0);
+        product.sold = (product.sold || 0) + item.quantity;
+
+        // Cập nhật theo biến thể (variant) và size
+        for (const variant of product.variants) {
+          if (variant.color === item.color) {
+            for (const size of variant.sizes) {
+              if (size.size === item.size) {
+                size.quantity = Math.max(size.quantity - item.quantity, 0);
+                size.sold = (size.sold || 0) + item.quantity;
+              }
+            }
+          }
+        }
+
+        // Lưu lại sản phẩm đã cập nhật
+        await product.save();
+      } else {
+        return res
+          .status(404)
+          .json({ message: `Product with ID ${item.productId} not found` });
+      }
+    }
+
     return res.status(200).json({
       EC: 0,
       message: "Order status updated successfully",
@@ -1065,4 +1309,5 @@ module.exports = {
   UpDateCompleted,
   UpDateOrderStatus,
   filterOrdersByStatus,
+  createRepurchaseOrder,
 };

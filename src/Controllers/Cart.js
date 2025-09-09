@@ -106,7 +106,7 @@ const addMultipleToCart = async (req, res) => {
 
     await Promise.all(
       items.map(async (item) => {
-        const productId = item.product?._id;
+        const productId = item.productId?._id || item.productId || item._id;
         const product = await Product.findById(productId);
         if (!product) return;
 
@@ -123,8 +123,9 @@ const addMultipleToCart = async (req, res) => {
         );
 
         if (itemIndex > -1) {
-          cart.items[itemIndex].quantity = quantity;
-          cart.items[itemIndex].totalItemPrice = finalPrice * quantity;
+          cart.items[itemIndex].quantity += quantity; // cộng dồn
+          cart.items[itemIndex].totalItemPrice =
+            finalPrice * cart.items[itemIndex].quantity;
         } else {
           cart.items.push({
             productId,
@@ -166,16 +167,21 @@ const getCartProduct = async (req, res) => {
       select: "name variants.images variants.color",
     });
 
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
+    // Luôn luôn trả về 200, không bao giờ 404 cho empty cart
+    const cartData = cart || { userId, items: [], totalAmount: 0 };
 
-    return res.status(200).json({ EC: 0, data: cart });
+    return res.status(200).json({
+      EC: 0,
+      EM: "Success",
+      data: cartData,
+    });
   } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: error.message });
+    console.error("Cart error:", error);
+    return res.status(500).json({
+      EC: 1,
+      EM: "Server error",
+      data: null,
+    });
   }
 };
 

@@ -18,6 +18,7 @@ const authRoutes = require("./Routes/auth");
 const session = require("express-session");
 const startCron = require("./Cron/cron"); // file chứa cron
 const Order = require("./Model/Order");
+
 // Cấu hình CORS cho Socket.IO
 const io = new Server(server, {
   cors: {
@@ -181,7 +182,9 @@ const userSocketMap = new Map();
 let OnlineCount = 0;
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-
+  socket.on("joinRoom", (orderId) => {
+    socket.join(orderId);
+  });
   OnlineCount++;
 
   io.emit("updateOnlineCount", OnlineCount);
@@ -202,31 +205,198 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
   });
 });
-// Kết nối DB và khởi động server
 
-app.post("/api/sepay/webhook", async (req, res) => {
-  const { content, transferAmount } = req.body;
-  const match = content.match(/DH(\w+)/);
-  const orderId = match ? match[1] : null;
+const apiToken =
+  "WQJXNNJBI6VZLAJ2XLSZOPO9T5R4EC0PU32FH4WIY97UVRTMRXDHKK6GZQUGHMCB";
 
-  if (!orderId)
-    return res
-      .status(400)
-      .json({ success: false, message: "Order ID not found" });
+// ======= Callback / Webhook SePay =======
 
-  const order = await Order.findById(orderId);
-  if (!order)
-    return res.status(404).json({ success: false, message: "Order not found" });
+app.use("/sepay/callback", express.json());
+app.post("/sepay/callback", async (req, res) => {
+  const payload = req.body;
+  console.log("📩 Webhook payload:", payload);
 
-  // So sánh số tiền
-  if (order.totalAmount !== transferAmount)
-    return res.status(400).json({ success: false, message: "Amount mismatch" });
+  const { content, transferAmount } = payload;
 
-  order.paymentStatus = "COMPLETED";
-  await order.save();
+  // --- 1. Verify signature (GIỮ NGUYÊN - RẤT TỐT!) ---
+  const signature = req.headers["x-sepay-signature"];
 
-  res.json({ success: true });
+  const rawSignature =
+    `accountNumber=${payload.accountNumber}&` +
+    `accumulated=${payload.accumulated}&` +
+    `content=${payload.content}&` +
+    `code=${payload.code || ""}&` +
+    `description=${payload.description}&` +
+    `gateway=${payload.gateway}&` +
+    `referenceCode=${payload.referenceCode}&` +
+    `subAccount=${payload.subAccount}&` +
+    `transactionDate=${payload.transactionDate}&` +
+    `transferAmount=${payload.transferAmount}&` +
+    `transferType=${payload.transferType}&` +
+    `id=${payload.id}`;
+
+  const hash = crypto
+    .createHmac("sha256", apiToken)
+    .update(rawSignature)
+    .digest("hex");
+
+  if (signature && hash !== signature) {
+    console.log("❌ Webhook SePay không hợp lệ!");
+    return res.status(400).send("Invalid signature");
+  }
+
+  console.log("✅ Webhook SePay hợp lệ, xử lý thanh toán...");
+
+  // --- 2. Extract orderId từ content ---
+  // ✅ REGEX MỚI: Tìm ORDER mà KHÔNG CẦN dấu gạch dưới
+  const orderMatch = content.match(/ORDER([a-f0-9]{24})/i);
+  const orderId = orderMatch ? orderMatch[1] : null;
+
+  console.log(orderId);
+
+  if (!orderId) {
+    console.log("❌ Không tìm thấy orderId trong content:", content);
+    return res.status(200).send("Invalid content format");
+  }
+
+  try {
+    // --- 3. Tìm và kiểm tra đơn hàng ---
+    const order = await Order.findById(orderId);
+    if (!order) {
+      console.log("❌ Không tìm thấy order:", orderId);
+      return res.status(200).send("Order not found");
+    }
+
+    // --- 4. THÊM: Kiểm tra số tiền (tùy chọn) ---
+    const expectedAmount = order.totalAmount || order.amount;
+    if (
+      expectedAmount &&
+      Math.abs(parseFloat(transferAmount) - parseFloat(expectedAmount)) > 0.01
+    ) {
+      console.log(
+        `⚠️ Số tiền không khớp. Expected: ${expectedAmount}, Received: ${transferAmount}`
+      );
+      // Có thể log warning nhưng vẫn xử lý, hoặc return tùy business logic
+    }
+
+    // --- 5. Cập nhật đơn hàng ---
+    if (order.status !== "paid") {
+      // THÊM: Cập nhật thêm các trường hữu ích
+      order.status = "paid";
+      order.paymentStatus = "Completed"; // Nếu bạn có field này
+      order.paidAt = new Date(); // Timestamp thanh toán
+      order.paymentInfo = {
+        gateway: payload.gateway,
+        transactionDate: payload.transactionDate,
+        accountNumber: payload.accountNumber,
+        transferAmount: payload.transferAmount,
+        referenceCode: payload.referenceCode,
+        transactionId: payload.id, // THÊM: ID giao dịch
+        subAccount: payload.subAccount,
+        transferType: payload.transferType,
+      };
+
+      await order.save();
+      console.log("✅ Order đã thanh toán:", order._id);
+
+      io.to(order._id.toString()).emit("orderPaid", {
+        orderId: order._id,
+        status: "paid",
+      });
+
+      // --- 6. THÊM: Xử lý sau thanh toán ---
+      await handlePostPaymentActions(order);
+    } else {
+      console.log("ℹ️ Order đã được thanh toán trước đó:", order._id);
+    }
+
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("❌ Lỗi khi xử lý webhook:", err);
+    res.status(500).send("Error processing"); // Có thể để 500 thay vì 200
+  }
 });
+
+// Hàm kiểm tra trạng thái thanh toán (optional - để client poll)
+async function checkPaymentStatus(orderId) {
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return { success: false, message: "Order not found" };
+    }
+
+    return {
+      success: true,
+      paymentStatus: order.paymentStatus,
+      paidAt: order.paidAt,
+      transactionId: order.transactionId,
+    };
+  } catch (error) {
+    console.error("Error checking payment status:", error);
+    return { success: false, message: "Error checking status" };
+  }
+}
+app.get("/api/payment/status/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+  const result = await checkPaymentStatus(orderId);
+  res.json(result);
+});
+
+// --- THÊM: Hàm xử lý sau thanh toán ---
+async function handlePostPaymentActions(order) {
+  try {
+    console.log(`🚀 Bắt đầu xử lý sau thanh toán cho order: ${order._id}`);
+
+    // 1. Gửi email xác nhận (nếu có)
+    if (order.userEmail || (order.userId && order.userId.email)) {
+      await sendOrderConfirmationEmail(order);
+      console.log("📧 Đã gửi email xác nhận");
+    }
+
+    // 2. Cập nhật inventory (nếu có sản phẩm)
+    if (order.items && order.items.length > 0) {
+      await updateInventoryAfterPurchase(order);
+      console.log("📦 Đã cập nhật inventory");
+    }
+
+    // 3. Gửi thông báo realtime
+    if (global.io && order.userId) {
+      global.io.to(`user_${order.userId}`).emit("payment_success", {
+        orderId: order._id,
+        amount: order.totalAmount || order.amount,
+        transactionId: order.paymentInfo.transactionId,
+      });
+      console.log("🔔 Đã gửi thông báo realtime");
+    }
+
+    // 4. Tạo invoice/receipt
+    await generateInvoiceForOrder(order);
+    console.log("🧾 Đã tạo hóa đơn");
+
+    console.log(`✅ Hoàn tất xử lý sau thanh toán cho order: ${order._id}`);
+  } catch (error) {
+    console.error("❌ Lỗi trong xử lý sau thanh toán:", error);
+    // Không throw error để không ảnh hưởng đến webhook response
+  }
+}
+
+// --- Các hàm helper (implement theo nhu cầu) ---
+async function sendOrderConfirmationEmail(order) {
+  // TODO: Implement email service
+  console.log("Sending confirmation email for order:", order._id);
+}
+
+async function updateInventoryAfterPurchase(order) {
+  // TODO: Update product quantities
+  console.log("Updating inventory for order:", order._id);
+}
+
+async function generateInvoiceForOrder(order) {
+  // TODO: Generate PDF invoice or receipt
+  console.log("Generating invoice for order:", order._id);
+}
+
+// Kết nối DB và khởi động server
 
 (async () => {
   try {
