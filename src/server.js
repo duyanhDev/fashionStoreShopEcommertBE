@@ -211,8 +211,8 @@ const apiToken =
 
 // ======= Callback / Webhook SePay =======
 
-app.use("/sepay/callback", express.json());
-app.post("/sepay/callback", async (req, res) => {
+app.use("/v1/sepay/callback", express.json());
+app.post("/v1/sepay/callback", async (req, res) => {
   const payload = req.body;
   console.log("📩 Webhook payload:", payload);
 

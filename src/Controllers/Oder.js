@@ -19,7 +19,8 @@ const SEPAY_CONFIG = {
   accountNumber: "96247609",
   accountName: "DANG TRINH DUY ANH",
   bankCode: "BIDV",
-  webhookSecret: "https://6e55dcc2f48f.ngrok-free.app/sepay/callback",
+  webhookSecret:
+    "https://fashionstoreshopecommertbe.onrender.com/v1/sepay/callback",
 };
 
 const config = {
