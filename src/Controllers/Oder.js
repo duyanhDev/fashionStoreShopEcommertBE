@@ -24,9 +24,9 @@ const SEPAY_CONFIG = {
 };
 
 const config = {
-  app_id: "2553",
-  key1: "PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL",
-  key2: "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz",
+  app_id: "2554",
+  key1: "sdngKKJmqEMzvh5QQcdD2A9XBSKUNaYn",
+  key2: "trMrHtvjo6myautxDUiAcYsVtaeQ8nhf",
   endpoint: "https://sb-openapi.zalopay.vn/v2/create",
 };
 
@@ -289,12 +289,12 @@ class OrderService {
     return { nameProduct, formattedProducts };
   }
 
-  async processZaloPayPayment(totalAmount, order) {
+  async processZaloPayPayment(totalAmount, id) {
     const transID = Math.floor(Math.random() * 1000000);
     const appTime = Date.now();
 
     const embed_data = {
-      redirecturl: "http://localhost:5173/vnpay_return",
+      redirecturl: `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`,
       merchantinfo: "Doisin Store",
       promotioninfo: "",
       redirectdata: "",
@@ -357,7 +357,7 @@ class OrderService {
     };
   }
 
-  async processVNPayPayment(totalAmount) {
+  async processVNPayPayment(totalAmount, id) {
     const { vnp_TmnCode, vnp_HashSecret, vnp_ReturnUrl, vnp_Url } = process.env;
 
     if (!vnp_TmnCode || !vnp_HashSecret || !vnp_ReturnUrl) {
@@ -379,7 +379,7 @@ class OrderService {
         `Thanh toan don hang : ${orderId}`
       ).replace(/%20/g, "+"),
       vnp_OrderType: "other",
-      vnp_ReturnUrl: vnp_ReturnUrl,
+      vnp_ReturnUrl: `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`,
       vnp_TmnCode: vnp_TmnCode,
       vnp_TxnRef: orderId,
       vnp_Version: "2.1.0",
@@ -401,14 +401,14 @@ class OrderService {
     };
   }
 
-  async processMoMoPayment(totalAmount) {
+  async processMoMoPayment(totalAmount, id) {
     const endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
     const accessKey = "F8BBA842ECF85";
     const secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
     const orderInfo = "pay with MoMo";
     const partnerCode = "MOMO";
-    const redirectUrl = "http://localhost:5173/vnpay_return";
-    const ipnUrl = "http://localhost:5173/vnpay_return";
+    const redirectUrl = `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`;
+    const ipnUrl = `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`;
     const requestType = "payWithMethod";
     const orderId = partnerCode + new Date().getTime();
     const requestId = orderId;
@@ -651,9 +651,8 @@ const CreateOrder = async (req, res) => {
         try {
           const ZaloPayResult = await orderService.processZaloPayPayment(
             totalAmount,
-            newOrder
+            newOrder._id
           );
-          console.log(ZaloPayResult);
 
           // Kiểm tra kết quả
           if (ZaloPayResult.EC === 0) {
@@ -677,8 +676,10 @@ const CreateOrder = async (req, res) => {
 
       case PAYMENT_METHODS.VNPAY:
         try {
-          const vnpResult = await orderService.processVNPayPayment(totalAmount);
-          console.log(vnpResult);
+          const vnpResult = await orderService.processVNPayPayment(
+            totalAmount,
+            newOrder._id
+          );
 
           if (vnpResult.EC === 0) {
             await orderService.deductStock(items);
@@ -698,7 +699,10 @@ const CreateOrder = async (req, res) => {
 
       case PAYMENT_METHODS.MOMO:
         try {
-          const momoResult = await orderService.processMoMoPayment(totalAmount);
+          const momoResult = await orderService.processMoMoPayment(
+            totalAmount,
+            newOrder._id
+          );
 
           // Kiểm tra kết quả thanh toán
           if (momoResult?.data?.resultCode === 0) {
@@ -723,8 +727,6 @@ const CreateOrder = async (req, res) => {
             newOrder._id
           );
 
-          console.log(momoResult);
-
           // Kiểm tra kết quả thanh toán
           if (momoResult.EC === 0) {
             await orderService.deductStock(items);
@@ -747,6 +749,7 @@ const CreateOrder = async (req, res) => {
         await orderService.updateCartItems(CartId, idItems);
         await newOrder.save();
         return res.status(200).json({
+          paymentMethod: paymentMethod.COD,
           EC: 0,
           message:
             "Order created successfully. Payment will be made upon delivery.",
@@ -1115,10 +1118,15 @@ const getOrderOneProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const data = await Order.findOne({ _id: id }).populate({
-      path: "items.productId",
-      select: "name variants.images discountedPrice slug",
-    });
+    const data = await Order.findOne({ _id: id })
+      .populate({
+        path: "items.productId",
+        select: "name variants.images discountedPrice slug",
+      })
+      .populate({
+        path: "userId",
+        select: "email ", // ép lấy email nếu có select: false
+      });
     return res.status(200).json({
       EC: 0,
       data: data,
