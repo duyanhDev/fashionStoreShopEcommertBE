@@ -17,7 +17,7 @@ const fs = require("fs");
 const path = require("path");
 const Products = require("./../Model/Product");
 const { json } = require("express");
-
+const mongoose = require("mongoose");
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 
@@ -681,7 +681,6 @@ const CategoryGenderFitterAPI = async (req, res) => {
 
 const toggleLikeReply = async (req, res) => {
   const { productId, ratingId, userId, content } = req.body;
-
   try {
     const product = await Products.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
@@ -693,13 +692,10 @@ const toggleLikeReply = async (req, res) => {
 
     await product.save();
 
-    return (
-      res.status(200),
-      json({
-        EC: 0,
-        message: "Phản hồi thành công",
-      })
-    );
+    return res.status(200).json({
+      EC: 0,
+      message: "Phản hồi thành công",
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Lỗi server",
@@ -1058,6 +1054,39 @@ const deleteOneProduct = async (req, res) => {
   }
 };
 
+const getTopSellingProductsByCategory = async (req, res) => {
+  try {
+    const { category, gender } = req.params;
+
+    // đảm bảo category đúng kiểu ObjectId
+    const categoryId = new mongoose.Types.ObjectId(category);
+
+    // query top-selling
+    const topSelling = await Products.aggregate([
+      { $match: { category: categoryId, gender: gender } },
+      { $sort: { sold: -1 } },
+      { $limit: 4 },
+    ]);
+
+    // query random
+    const randomProducts = await Products.aggregate([
+      { $match: { category: categoryId, gender: gender } },
+      { $sample: { size: 4 } }, // lấy ngẫu nhiên 4 sp
+    ]);
+
+    return res.status(200).json({
+      EC: 0,
+      data: randomProducts,
+    });
+  } catch (error) {
+    console.error("Error getTopSellingAndRandomProducts:", error);
+    return res.status(500).json({
+      EC: 1,
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   AddProductsAPI,
   ListProductsAPI,
@@ -1074,4 +1103,5 @@ module.exports = {
   updateViewProductController,
   DeleteRatingProductController,
   deleteOneProduct,
+  getTopSellingProductsByCategory,
 };

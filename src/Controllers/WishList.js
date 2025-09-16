@@ -75,19 +75,26 @@ const getWishlist = async (req, res) => {
     );
 
     if (!wishlist) {
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy danh sách yêu thích" });
+      // Trả về rỗng thay vì 404
+      return res.status(200).json({
+        EC: 0,
+        EM: "Success - Empty wishlist",
+        data: {
+          products: [],
+        },
+      });
     }
 
     return res.status(200).json({
       EC: 0,
+      EM: "Success",
       data: wishlist,
     });
   } catch (error) {
     return res.status(500).json({ message: "Lỗi khi lấy danh sách yêu thích" });
   }
 };
+
 module.exports = {
   addToWishlist,
   RemoveToWishList,

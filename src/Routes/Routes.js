@@ -19,6 +19,7 @@ const {
   updateViewProductController,
   DeleteRatingProductController,
   deleteOneProduct,
+  getTopSellingProductsByCategory,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -43,6 +44,7 @@ const {
   getRandomAdminAPI,
   ResetPassword,
   checkRestToken,
+  RegisterUserAPI_Alternative,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -226,6 +228,13 @@ RouterAPI.put("/products/:id", verifyToken, isAdmin, UpdateProductsAPI);
 
 RouterAPI.delete("/delete-product", verifyToken, isAdmin, deleteOneProduct);
 
+// topselling
+
+RouterAPI.get(
+  "/top-selling/:category/:gender",
+  getTopSellingProductsByCategory
+);
+
 // đánh giá
 /**
  * @swagger
@@ -301,7 +310,12 @@ RouterAPI.delete("/category/:id", verifyToken, isAdmin, DeleteOneCategoryAPI);
 // Auth
 
 RouterAPI.post("/register", RegisterUserAPI);
-RouterAPI.post("/register-admin", verifyToken, isAdmin, RegisterUserAPI);
+RouterAPI.post(
+  "/register-admin",
+  verifyToken,
+  isAdmin,
+  RegisterUserAPI_Alternative
+);
 RouterAPI.post("/login", LoginUserAPI);
 RouterAPI.get("/users", ListUserAPI);
 RouterAPI.get("/profile-users", ListOneUserAPI);
@@ -332,6 +346,7 @@ RouterAPI.post("/cart/add-many", addMultipleToCart);
 RouterAPI.get("/cart/:userId", getCartProduct);
 RouterAPI.put("/cart/:cartId/:itemId", RemoveCartProductfirst);
 RouterAPI.put("/cart-update/:cartId/:itemId", UpdateCartQuantity);
+
 // oders
 RouterAPI.post("/order", CreateOrder);
 RouterAPI.get("/order/:userId", listOderUserId);
@@ -412,7 +427,12 @@ RouterAPI.get("/get-list-sender/:sender", getMessagesSenderList);
 
 // Voucher
 
-RouterAPI.post("/add-voucher", verifyToken, isAdmin, addVoucherAPI);
+RouterAPI.post(
+  "/add-voucher",
+  verifyToken,
+  checkPermission("customer_support"),
+  addVoucherAPI
+);
 RouterAPI.get("/voucher", listVoucherAPI);
 RouterAPI.get("/voucher/:id", getListOneVoucherAPI);
 RouterAPI.get("/voucher-user/:userId", getListVoucherByUserId);

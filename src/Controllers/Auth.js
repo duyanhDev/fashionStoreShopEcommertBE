@@ -21,6 +21,7 @@ const transporter = nodemailer.createTransport({
 const RegisterUserAPI = async (req, res) => {
   try {
     const { name, email, password, isAdmin } = req.body;
+    console.log(name, email, password, isAdmin);
 
     const startsWithUppercase = /^[A-Z]/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
@@ -71,6 +72,124 @@ const RegisterUserAPI = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({
+      EC: -1,
+      EM: "Lỗi máy chủ",
+    });
+  }
+};
+
+const RegisterUserAPI_Alternative = async (req, res) => {
+  try {
+    const { name, email, password, role, permissions, avatar } = req.body;
+
+    // Kiểm tra các trường bắt buộc
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({
+        EC: 1,
+        EM: "Vui lòng điền đầy đủ thông tin: name, email, password, role",
+      });
+    }
+
+    // Kiểm tra role hợp lệ
+    const validRoles = ["customer", "admin", "staff"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        EC: 1,
+        EM: "Role không hợp lệ. Chỉ chấp nhận: customer, admin, staff",
+      });
+    }
+
+    // Validation email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        EC: 1,
+        EM: "Email không hợp lệ",
+      });
+    }
+
+    // Kiểm tra email đã tồn tại
+    const existingUser = await Users.findOne({ email: email });
+    if (existingUser) {
+      return res.status(400).json({
+        EC: 1,
+        EM: "Email đã được sử dụng",
+      });
+    }
+
+    // Validation mật khẩu khác nhau cho admin và customer
+    if (role === "admin" || role === "staff") {
+      // Yêu cầu mật khẩu mạnh hơn cho admin/staff
+      const startsWithUppercase = /^[A-Z]/.test(password);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+      const hasNumber = /\d/.test(password);
+
+      if (password.length < 8) {
+        return res.status(400).json({
+          EC: 1,
+          EM: `Mật khẩu ${role} phải có ít nhất 8 ký tự`,
+        });
+      }
+
+      if (!startsWithUppercase || !hasSpecialChar || !hasNumber) {
+        return res.status(400).json({
+          EC: 1,
+          EM: `Mật khẩu ${role} phải bắt đầu bằng chữ in hoa, chứa ít nhất một ký tự đặc biệt và một số`,
+        });
+      }
+    } else if (role === "customer") {
+      // Yêu cầu mật khẩu đơn giản hơn cho customer
+      if (password.length < 6) {
+        return res.status(400).json({
+          EC: 1,
+          EM: "Mật khẩu phải có ít nhất 6 ký tự",
+        });
+      }
+    }
+
+    // Hash mật khẩu trước khi lưu
+
+    // Tạo user mới với model Users
+    const newUser = new Users({
+      name: name,
+      email: email,
+      password: password, // Lưu mật khẩu đã hash
+      avatar: avatar,
+      role: role,
+      permissions: permissions || "", // Default là array rỗng nếu không có permissions
+    });
+
+    // Lưu vào database
+    const savedUser = await newUser.save();
+
+    return res.status(201).json({
+      // 201 cho tạo mới thành công
+      EC: 0,
+      EM: `Đăng ký ${role} thành công`,
+      data: {
+        savedUser,
+      },
+    });
+  } catch (error) {
+    console.log("Registration error:", error);
+
+    // Xử lý các loại lỗi cụ thể
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        EC: 1,
+        EM: "Dữ liệu không hợp lệ: " + error.message,
+      });
+    }
+
+    if (error.code === 11000) {
+      // MongoDB duplicate key error
+      return res.status(400).json({
+        EC: 1,
+        EM: "Email đã tồn tại trong hệ thống",
+      });
+    }
+
     return res.status(500).json({
       EC: -1,
       EM: "Lỗi máy chủ",
@@ -528,4 +647,5 @@ module.exports = {
   changeUserPassword,
   getRandomAdminAPI,
   checkRestToken,
+  RegisterUserAPI_Alternative,
 };
