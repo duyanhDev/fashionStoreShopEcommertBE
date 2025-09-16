@@ -67,6 +67,7 @@ const {
   filterOrdersByStatus,
   UpDateConfirmed,
   createRepurchaseOrder,
+  getListDallyOrder,
 } = require("../Controllers/Oder");
 
 const { searchProductsByNameAPI } = require("../Controllers/SearchProductsAPI");
@@ -128,6 +129,10 @@ const {
   FindOneBannerController,
 } = require("../Controllers/Banner");
 const { getRevenue } = require("../Controllers/Transaction");
+const {
+  createChangeModelAPI,
+  getChangeModelAPI,
+} = require("../Controllers/Change");
 
 /**
  * @swagger
@@ -400,6 +405,8 @@ RouterAPI.put("/update-order-repurchase/:id", createRepurchaseOrder);
 
 RouterAPI.post("/filter-order/:status", filterOrdersByStatus);
 
+RouterAPI.get("/daily", getListDallyOrder);
+
 // notifications
 
 RouterAPI.get("/notification/:userId", getNotificationsAPI);
@@ -555,4 +562,9 @@ RouterAPI.get("/banner-id", FindOneBannerController);
 
 // Api doanh thu
 RouterAPI.get("/revenue/total", getRevenue);
+
+// lịch sư thay dổi website
+
+RouterAPI.post("/create/changelog", createChangeModelAPI);
+RouterAPI.get("/changelog", getChangeModelAPI);
 module.exports = RouterAPI;
