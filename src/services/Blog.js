@@ -94,9 +94,28 @@ const updateBlogView = async (slug) => {
   return blog;
 };
 
+const newUpdateBlog = async (id, blogData) => {
+  try {
+    const updatedBlog = await BlogModel.findByIdAndUpdate(id, blogData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedBlog) {
+      throw new Error("Blog not found");
+    }
+
+    return updatedBlog;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
 module.exports = {
   CreateBlog,
   updateBlogView,
   getAllBlog,
   getDetailSlug,
+  newUpdateBlog,
 };

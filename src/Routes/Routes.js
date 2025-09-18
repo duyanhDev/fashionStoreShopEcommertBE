@@ -1,4 +1,5 @@
 const express = require("express");
+
 const verifyToken = require("../Middlewares/auth");
 const checkPermission = require("../Middlewares/checkPermission");
 const isAdmin = require("../Middlewares/isAdmin");
@@ -109,6 +110,7 @@ const {
   updateBlogController,
   getAllBlogController,
   getDetailSlugController,
+  newUpdateBlogAPI,
 } = require("../Controllers/Blog");
 const {
   handleGeminiRequest,
@@ -132,6 +134,8 @@ const { getRevenue } = require("../Controllers/Transaction");
 const {
   createChangeModelAPI,
   getChangeModelAPI,
+  updateChangeModelAPI,
+  DeletehangeModelAPI,
 } = require("../Controllers/Change");
 
 /**
@@ -461,6 +465,7 @@ RouterAPI.post("/create-blog", createBlogController);
 RouterAPI.put("/post-view/:slug", updateBlogController);
 RouterAPI.get("/all-blog", getAllBlogController);
 RouterAPI.get("/blog/:slug", getDetailSlugController);
+RouterAPI.put("/update-blog/:id", newUpdateBlogAPI);
 
 // AI
 RouterAPI.post("/ChatAI", BotChatAPI);
@@ -567,4 +572,7 @@ RouterAPI.get("/revenue/total", getRevenue);
 
 RouterAPI.post("/create/changelog", createChangeModelAPI);
 RouterAPI.get("/changelog", getChangeModelAPI);
+RouterAPI.put("/update-changelog/:id", updateChangeModelAPI);
+RouterAPI.delete("/delete-changelog/:id", DeletehangeModelAPI);
+
 module.exports = RouterAPI;

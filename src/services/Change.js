@@ -22,4 +22,42 @@ const getChangeModel = async () => {
   }
 };
 
-module.exports = { createChangeModel, getChangeModel };
+const updateChangeModel = async (id, changelogData) => {
+  try {
+    const existingChange = await ChangeModel.findById(id);
+    if (!existingChange) {
+      throw new Error("Không tìm thấy changelog");
+    }
+
+    // Gán dữ liệu mới vào instance
+    Object.assign(existingChange, changelogData);
+
+    // Lưu lại
+    const saveData = await existingChange.save();
+    return saveData;
+  } catch (error) {
+    console.error("Lỗi update changelog:", error);
+    throw error;
+  }
+};
+
+const DeletehangeModel = async (id) => {
+  try {
+    const deletedChange = await ChangeModel.findByIdAndDelete(id);
+
+    if (deletedChange) {
+      return { success: true, data: deletedChange };
+    } else {
+      return { success: false, message: "Document not found" };
+    }
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+};
+
+module.exports = {
+  createChangeModel,
+  getChangeModel,
+  updateChangeModel,
+  DeletehangeModel,
+};

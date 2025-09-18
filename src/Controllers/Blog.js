@@ -3,6 +3,7 @@ const {
   updateBlogView,
   getAllBlog,
   getDetailSlug,
+  newUpdateBlog,
 } = require("../services/Blog");
 
 const createBlogController = async (req, res) => {
@@ -63,9 +64,25 @@ const getDetailSlugController = async (req, res) => {
     console.log(error);
   }
 };
+
+const newUpdateBlogAPI = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dataBlog } = req.body;
+    const data = await newUpdateBlog(id, dataBlog);
+
+    return res.status(200).json({
+      EC: 0,
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 module.exports = {
   createBlogController,
   updateBlogController,
   getAllBlogController,
   getDetailSlugController,
+  newUpdateBlogAPI,
 };

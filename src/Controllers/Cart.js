@@ -164,7 +164,7 @@ const getCartProduct = async (req, res) => {
 
     const cart = await Cart.findOne({ userId }).populate({
       path: "items.productId",
-      select: "name variants.images variants.color",
+      select: "name variants.images variants.color variants.sizes",
     });
 
     // Luôn luôn trả về 200, không bao giờ 404 cho empty cart
