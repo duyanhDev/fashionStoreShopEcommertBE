@@ -96,18 +96,29 @@ const updateBlogView = async (slug) => {
 
 const newUpdateBlog = async (id, blogData) => {
   try {
-    const updatedBlog = await BlogModel.findByIdAndUpdate(id, blogData, {
-      new: true,
-      runValidators: true,
-    });
+    const existingBlog = await BlogModel.findById(id);
+    if (!existingBlog) throw new Error("Blog không tồn tại");
 
-    if (!updatedBlog) {
-      throw new Error("Blog not found");
+    let imgUrl = existingBlog.img;
+
+    if (blogData.img) {
+      const result = await uploadFileToCloudinary(blogData.img);
+      imgUrl = [{ url: result[0].secure_url }]; // hoặc [result[0].secure_url]
     }
+
+    const updatedBlog = await BlogModel.findByIdAndUpdate(
+      id,
+      {
+        ...existingBlog.toObject(),
+        ...blogData,
+        img: imgUrl,
+      },
+      { new: true }
+    );
 
     return updatedBlog;
   } catch (error) {
-    console.log(error);
+    console.error("Lỗi khi update blog:", error);
     throw error;
   }
 };

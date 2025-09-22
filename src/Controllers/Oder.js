@@ -97,9 +97,17 @@ class OrderService {
       }
 
       const discountAmount = (discountValue / 100) * item.price;
-      const finalPrice = item.price - discountAmount;
+      const finalPrice =
+        item.price > 300000
+          ? item.price - discountAmount + 35000
+          : item.price - discountAmount;
 
-      totalAmount += discountValue > 0 ? finalPrice : item.price;
+      totalAmount +=
+        discountValue > 0
+          ? finalPrice
+          : item.price > 300000
+          ? item.price
+          : item.price + 35000;
 
       processedItems.push({
         ...item,

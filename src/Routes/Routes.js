@@ -115,6 +115,7 @@ const {
 const {
   handleGeminiRequest,
   generateBlogByGemini,
+  generateTryOn,
 } = require("../Controllers/Gemini");
 const {
   CreateSupplierAPI,
@@ -137,6 +138,11 @@ const {
   updateChangeModelAPI,
   DeletehangeModelAPI,
 } = require("../Controllers/Change");
+const {
+  createSizeGuideModel,
+  getSizeGuideModel,
+  addOneSize,
+} = require("../Controllers/SizeGuide");
 
 /**
  * @swagger
@@ -575,4 +581,9 @@ RouterAPI.get("/changelog", getChangeModelAPI);
 RouterAPI.put("/update-changelog/:id", updateChangeModelAPI);
 RouterAPI.delete("/delete-changelog/:id", DeletehangeModelAPI);
 
+/// bảng size
+
+RouterAPI.post("/create/size", createSizeGuideModel);
+RouterAPI.get("/size/:id", getSizeGuideModel);
+RouterAPI.post("/add-one/size", addOneSize);
 module.exports = RouterAPI;
