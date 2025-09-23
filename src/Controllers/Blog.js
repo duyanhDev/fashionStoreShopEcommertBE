@@ -68,17 +68,39 @@ const getDetailSlugController = async (req, res) => {
 const newUpdateBlogAPI = async (req, res) => {
   try {
     const { id } = req.params;
-    const { dataBlog } = req.body;
+
+    // lấy dữ liệu text từ body
+    const dataBlog = {
+      title: req.body.title,
+      tip: req.body.tip,
+      content: req.body.content,
+      slug: req.body.slug, // chú ý tên khớp với hàm newUpdateBlog
+      regex: req.body.regex,
+      userId: req.body.userId,
+      readTime: req.body.readTime,
+      featured: req.body.featured,
+    };
+
+    // nếu có file upload thì thêm vào
+    if (req.files && req.files.img) {
+      dataBlog.img = req.files.img; // khớp với newUpdateBlog
+    }
+
     const data = await newUpdateBlog(id, dataBlog);
 
     return res.status(200).json({
       EC: 0,
-      data: data,
+      data,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Lỗi API update blog:", error);
+    return res.status(500).json({
+      EC: -1,
+      message: error.message,
+    });
   }
 };
+
 module.exports = {
   createBlogController,
   updateBlogController,

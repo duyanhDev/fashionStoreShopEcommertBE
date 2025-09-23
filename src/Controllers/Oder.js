@@ -313,7 +313,7 @@ class OrderService {
       {
         itemid: "1",
         itemname: "Order Items",
-        itemprice: totalAmount,
+        itemprice: totalAmount >= 300000 ? totalAmount : totalAmount + 35000,
         itemquantity: 1,
       },
     ];
@@ -374,7 +374,8 @@ class OrderService {
 
     const createDate = moment().format("YYYYMMDDHHmmss");
     const orderId = moment().format("DDHHmmss");
-    const amount = totalAmount * 100;
+    const amount =
+      totalAmount >= 300000 ? totalAmount * 100 : totalAmount * 100 + 35000;
 
     let vnp_Params = {
       vnp_Amount: amount,
@@ -466,9 +467,6 @@ class OrderService {
 
   async processSePayPayment(totalAmount, orderId) {
     try {
-      console.log(
-        `Creating payment QR for Order ${orderId}, Amount: ${totalAmount}`
-      );
       const transferContent = `ORDER${orderId}`; // Thay vì ORDER_${orderId}
 
       // ✅ TẠO QR CODE SỬ DỤNG VIETQR (KHÔNG CẦN API SEPAY)
@@ -495,7 +493,7 @@ class OrderService {
         qrCodeUrl: qrUrl, // Dùng VietQR (ổn định hơn)
         sePayQrUrl: sePayQrUrl, // Backup SePay QR
         paymentCode: transferContent,
-        amount: totalAmount,
+        amount: totalAmount > 300000 ? totalAmount : totalAmount + 35000,
         content: transferContent,
         orderId: orderId,
         accountInfo: {
@@ -758,6 +756,7 @@ const CreateOrder = async (req, res) => {
         await newOrder.save();
         return res.status(200).json({
           paymentMethod: paymentMethod,
+          order_id: newOrder._id,
           EC: 0,
           message:
             "Order created successfully. Payment will be made upon delivery.",
@@ -987,14 +986,19 @@ const UpDateCompleted = async (req, res) => {
     }
 
     // Cập nhật userGroup theo tổng tiền mới
-    let updatedUserGroup = "all"; // Mặc định
-    if (user.totalPrice >= 100000000) {
+    let updatedUserGroup = "newUser"; // Mặc định
+    if (user.totalPrice >= 1012134430) {
+      console.log(updatedUserGroup);
+
+      updatedUserGroup = "elite";
+    } else if (user.totalPrice >= 50000000) {
       updatedUserGroup = "loyalCustomer";
     } else if (user.totalPrice >= 10000000) {
       updatedUserGroup = "vip";
     } else if (user.totalPrice >= 1000000) {
-      updatedUserGroup = "newUser";
+      updatedUserGroup = "regular";
     }
+    console.log(updatedUserGroup);
 
     // Nếu userGroup thay đổi, cập nhật lại trong database
     if (user.userGroup !== updatedUserGroup) {

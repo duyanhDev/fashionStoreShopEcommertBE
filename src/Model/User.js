@@ -27,6 +27,10 @@ const UserSchema = new mongoose.Schema(
     permissions: {
       type: String,
       enum: ["order_approval", "customer_support", "customer"],
+      required: function () {
+        // Chỉ required nếu là staff
+        return this.role === "staff";
+      },
     },
     cart: [{ type: mongoose.Schema.Types.ObjectId, ref: "Cart" }],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
@@ -47,7 +51,7 @@ const UserSchema = new mongoose.Schema(
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
-  if (this.totalPrice >= 100000000) {
+  if (this.totalPrice >= 1000000000) {
     this.userGroup = "elite";
   } else if (this.totalPrice >= 50000000) {
     this.userGroup = "loyalCustomer";

@@ -3,6 +3,7 @@ const {
   RegisterUser,
   LoginUser,
   getRandomAdmin,
+  isAccountUserLocker,
 } = require("./../services/Auth");
 const Users = require("./../Model/User");
 const Product = require("./../Model/Product");
@@ -157,7 +158,7 @@ const RegisterUserAPI_Alternative = async (req, res) => {
       password: password, // Lưu mật khẩu đã hash
       avatar: avatar,
       role: role,
-      permissions: permissions || "", // Default là array rỗng nếu không có permissions
+      permissions: permissions, // Default là array rỗng nếu không có permissions
     });
 
     // Lưu vào database
@@ -311,8 +312,6 @@ const UpDateProfileUserAPI = async (req, res) => {
 
     // Nếu có avatar mới
     if (avatar) {
-      console.log(avatar);
-
       try {
         const result = await uploadFileToCloudinary(avatar);
         updatedData.avatar = result[0].secure_url;
@@ -632,6 +631,22 @@ const getRandomAdminAPI = async (req, res) => {
     console.log(error);
   }
 };
+
+const isAccountUserLockerAPI = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { isAccountLocked } = req.body;
+    const data = await isAccountUserLocker(userId, isAccountLocked);
+
+    return res.status(201).json({
+      EC: 0,
+      message: "Khóa thành công tài khoản ",
+      data: data,
+    });
+  } catch (error) {
+    return res.status(404).json({ message: "Không tồn tại user" });
+  }
+};
 module.exports = {
   RegisterUserAPI,
   LoginUserAPI,
@@ -648,4 +663,5 @@ module.exports = {
   getRandomAdminAPI,
   checkRestToken,
   RegisterUserAPI_Alternative,
+  isAccountUserLockerAPI,
 };

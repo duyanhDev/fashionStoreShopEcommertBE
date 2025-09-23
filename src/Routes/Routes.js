@@ -46,6 +46,7 @@ const {
   ResetPassword,
   checkRestToken,
   RegisterUserAPI_Alternative,
+  isAccountUserLockerAPI,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -131,7 +132,10 @@ const {
   ListsBannerController,
   FindOneBannerController,
 } = require("../Controllers/Banner");
-const { getRevenue } = require("../Controllers/Transaction");
+const {
+  getRevenue,
+  exportTransactionsExcel,
+} = require("../Controllers/Transaction");
 const {
   createChangeModelAPI,
   getChangeModelAPI,
@@ -142,7 +146,15 @@ const {
   createSizeGuideModel,
   getSizeGuideModel,
   addOneSize,
+  updateOneSize,
+  deleteOneSize,
 } = require("../Controllers/SizeGuide");
+const {
+  deleteOnePantsSize,
+  getPantsSizeGuide,
+  addOnePantsSize,
+  updateOnePantsSize,
+} = require("../Controllers/pantsSizeController");
 
 /**
  * @swagger
@@ -350,6 +362,15 @@ RouterAPI.get("/check-reset-token/:token", checkRestToken);
 RouterAPI.post("/refresh-token", RefreshToken);
 RouterAPI.put("/config-password", verifyToken, isAdmin, changeUserPassword);
 RouterAPI.delete("/delete-user/:id", verifyToken, isAdmin, DeleteUser);
+
+// khóa tài khoản
+
+RouterAPI.put(
+  "/users/:userId/lock",
+  verifyToken,
+  isAdmin,
+  isAccountUserLockerAPI
+);
 
 // random id admin
 
@@ -581,9 +602,41 @@ RouterAPI.get("/changelog", getChangeModelAPI);
 RouterAPI.put("/update-changelog/:id", updateChangeModelAPI);
 RouterAPI.delete("/delete-changelog/:id", DeletehangeModelAPI);
 
-/// bảng size
+/// bảng size áo
 
-RouterAPI.post("/create/size", createSizeGuideModel);
+RouterAPI.post("/create/size", verifyToken, isAdmin, createSizeGuideModel);
 RouterAPI.get("/size/:id", getSizeGuideModel);
-RouterAPI.post("/add-one/size", addOneSize);
+RouterAPI.post("/add-one/size", verifyToken, isAdmin, addOneSize);
+RouterAPI.put("/update-size", verifyToken, isAdmin, updateOneSize);
+RouterAPI.delete("/delete-size", verifyToken, isAdmin, deleteOneSize);
+
+// bảng size quần
+
+RouterAPI.get("/products/:productId/sizes", getPantsSizeGuide);
+
+// Thêm 1 size mới
+RouterAPI.post(
+  "/products/:productId/sizes",
+  verifyToken,
+  isAdmin,
+  addOnePantsSize
+);
+
+// Cập nhật 1 size theo ID
+RouterAPI.put(
+  "/products/:productId/sizes/:sizeId",
+  verifyToken,
+  isAdmin,
+  updateOnePantsSize
+);
+
+// Xoá 1 size theo ID
+RouterAPI.delete(
+  "/products/:productId/sizes/:sizeId",
+  verifyToken,
+  isAdmin,
+  deleteOnePantsSize
+);
+
+RouterAPI.get("/export-excel", verifyToken, isAdmin, exportTransactionsExcel);
 module.exports = RouterAPI;

@@ -98,9 +98,42 @@ const getRandomAdmin = async () => {
   }
 };
 
+const isAccountUserLocker = async (userId, isAccountLocked) => {
+  try {
+    if (!userId) {
+      return;
+    }
+
+    // Lấy user hiện tại
+    const existingUser = await Users.findById(userId);
+
+    if (!existingUser) {
+      return null; // không tìm thấy user
+    }
+
+    // Nếu là admin thì không khóa
+    if (existingUser.role === "admin") {
+      return existingUser;
+    }
+
+    // Nếu không phải admin thì khóa
+    const updatedUser = await Users.findByIdAndUpdate(
+      userId,
+      { isAccountLocked: isAccountLocked },
+      { new: true }
+    );
+
+    return updatedUser;
+  } catch (error) {
+    console.error("Error locking account:", error);
+    throw error;
+  }
+};
+
 module.exports = {
   RegisterUser,
   LoginUser,
   RefreshToken,
   getRandomAdmin,
+  isAccountUserLocker,
 };
