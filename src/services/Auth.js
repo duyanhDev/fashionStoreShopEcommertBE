@@ -97,39 +97,51 @@ const getRandomAdmin = async () => {
     console.log(error);
   }
 };
-
 const isAccountUserLocker = async (userId, isAccountLocked) => {
   try {
     if (!userId) {
-      return;
+      throw new Error("User ID is required");
     }
 
     // Lấy user hiện tại
     const existingUser = await Users.findById(userId);
 
     if (!existingUser) {
-      return null; // không tìm thấy user
+      throw new Error("User not found");
     }
 
-    // Nếu là admin thì không khóa
+    // Nếu là admin thì không được phép khóa
     if (existingUser.role === "admin") {
-      return existingUser;
+      throw new Error(
+        "Cannot lock admin account. Admin accounts cannot be locked for security reasons."
+      );
     }
 
-    // Nếu không phải admin thì khóa
+    // Nếu không phải admin thì thực hiện khóa/mở khóa
     const updatedUser = await Users.findByIdAndUpdate(
       userId,
       { isAccountLocked: isAccountLocked },
       { new: true }
     );
 
-    return updatedUser;
+    return {
+      success: true,
+      user: updatedUser,
+      message: isAccountLocked
+        ? "Account has been locked successfully"
+        : "Account has been unlocked successfully",
+    };
   } catch (error) {
-    console.error("Error locking account:", error);
-    throw error;
+    console.error("Error in isAccountUserLocker:", error);
+
+    // Trả về error với format nhất quán
+    return {
+      success: false,
+      error: error.message,
+      user: null,
+    };
   }
 };
-
 module.exports = {
   RegisterUser,
   LoginUser,

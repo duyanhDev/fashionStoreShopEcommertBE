@@ -112,6 +112,7 @@ const {
   getAllBlogController,
   getDetailSlugController,
   newUpdateBlogAPI,
+  deleteBlogController,
 } = require("../Controllers/Blog");
 const {
   handleGeminiRequest,
@@ -493,6 +494,7 @@ RouterAPI.put("/post-view/:slug", updateBlogController);
 RouterAPI.get("/all-blog", getAllBlogController);
 RouterAPI.get("/blog/:slug", getDetailSlugController);
 RouterAPI.put("/update-blog/:id", newUpdateBlogAPI);
+RouterAPI.delete("/delete-blog/:id", deleteBlogController);
 
 // AI
 RouterAPI.post("/ChatAI", BotChatAPI);

@@ -4,6 +4,7 @@ const {
   getAllBlog,
   getDetailSlug,
   newUpdateBlog,
+  deleteBlog,
 } = require("../services/Blog");
 
 const createBlogController = async (req, res) => {
@@ -101,10 +102,30 @@ const newUpdateBlogAPI = async (req, res) => {
   }
 };
 
+const deleteBlogController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await deleteBlog(id);
+
+    return res.status(200).json({
+      EC: 0,
+      data,
+      message: "Xóa thành công blog",
+    });
+  } catch (error) {
+    console.error("Lỗi API update blog:", error);
+    return res.status(500).json({
+      EC: -1,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBlogController,
   updateBlogController,
   getAllBlogController,
   getDetailSlugController,
   newUpdateBlogAPI,
+  deleteBlogController,
 };

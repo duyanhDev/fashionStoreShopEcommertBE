@@ -636,11 +636,26 @@ const isAccountUserLockerAPI = async (req, res) => {
   try {
     const { userId } = req.params;
     const { isAccountLocked } = req.body;
+    const user = await Users.findById(userId); // giả sử bạn có hàm này
+    if (!user) {
+      return res.status(404).json({ message: "Không tồn tại user" });
+    }
+
+    // Kiểm tra nếu user là admin
+    if (user.role === "admin") {
+      return res.status(403).json({
+        EC: 1,
+        message: "Không thể khóa tài khoản admin",
+      });
+    }
+
     const data = await isAccountUserLocker(userId, isAccountLocked);
 
     return res.status(201).json({
       EC: 0,
-      message: "Khóa thành công tài khoản ",
+      message: isAccountLocked
+        ? "Khóa tài khoản thành công"
+        : "Mở khóa tài khoản thành công",
       data: data,
     });
   } catch (error) {

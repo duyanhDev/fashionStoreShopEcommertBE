@@ -123,10 +123,22 @@ const newUpdateBlog = async (id, blogData) => {
   }
 };
 
+const deleteBlog = async (id) => {
+  try {
+    const data = await BlogModel.findByIdAndDelete(id);
+
+    return data;
+  } catch (error) {
+    console.error("Lỗi khi update blog:", error);
+    throw error;
+  }
+};
+
 module.exports = {
   CreateBlog,
   updateBlogView,
   getAllBlog,
   getDetailSlug,
   newUpdateBlog,
+  deleteBlog,
 };
