@@ -47,6 +47,7 @@ const {
   checkRestToken,
   RegisterUserAPI_Alternative,
   isAccountUserLockerAPI,
+  sendPasswordRecoveryEmail,
 } = require("./../Controllers/Auth");
 const {
   addToCart,
@@ -363,6 +364,13 @@ RouterAPI.get("/check-reset-token/:token", checkRestToken);
 RouterAPI.post("/refresh-token", RefreshToken);
 RouterAPI.put("/config-password", verifyToken, isAdmin, changeUserPassword);
 RouterAPI.delete("/delete-user/:id", verifyToken, isAdmin, DeleteUser);
+
+RouterAPI.post(
+  "/send-newpassword",
+  verifyToken,
+  isAdmin,
+  sendPasswordRecoveryEmail
+);
 
 // khóa tài khoản
 

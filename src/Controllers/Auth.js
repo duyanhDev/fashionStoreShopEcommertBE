@@ -22,8 +22,6 @@ const transporter = nodemailer.createTransport({
 const RegisterUserAPI = async (req, res) => {
   try {
     const { name, email, password, isAdmin } = req.body;
-    console.log(name, email, password, isAdmin);
-
     const startsWithUppercase = /^[A-Z]/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
@@ -34,21 +32,8 @@ const RegisterUserAPI = async (req, res) => {
       });
     }
 
-    let avatarUrl = "";
-
-    if (req.files && req.files.avatar) {
-      const files = req.files.avatar;
-      const result = await uploadFileToCloudinary(files);
-
-      if (result && result.length > 0) {
-        avatarUrl = result[0].secure_url;
-      } else {
-        return res.status(400).json({
-          EC: 1,
-          EM: "Không thể tải ảnh lên Cloudinary",
-        });
-      }
-    }
+    let avatarUrl =
+      "https://mcdn.coolmate.me/image//October2023/mceclip3_72.png";
 
     const dataUser = await RegisterUser(
       name,
@@ -156,7 +141,8 @@ const RegisterUserAPI_Alternative = async (req, res) => {
       name: name,
       email: email,
       password: password, // Lưu mật khẩu đã hash
-      avatar: avatar,
+      avatar:
+        avatar || "https://mcdn.coolmate.me/image//October2023/mceclip3_72.png",
       role: role,
       permissions: permissions, // Default là array rỗng nếu không có permissions
     });
@@ -451,8 +437,6 @@ const ResetPassword = async (req, res) => {
     // Xác thực token bằng JWT
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
-    console.log(payload);
-
     // Tìm user
     const user = await Users.findById(payload._id);
     if (!user) {
@@ -662,6 +646,71 @@ const isAccountUserLockerAPI = async (req, res) => {
     return res.status(404).json({ message: "Không tồn tại user" });
   }
 };
+
+// lấy mật khẩu qua maill
+
+const sendPasswordRecoveryEmail = async (req, res) => {
+  try {
+    const { email, passwordAdmin, adminEmail } = req.body;
+
+    // 1. Tìm admin theo email
+    const admin = await Users.findOne({ email: adminEmail, role: "admin" });
+    if (!admin) {
+      return res
+        .status(404)
+        .json({ message: "Đây không phải là tài khoản admin" });
+    }
+
+    // 2. Kiểm tra mật khẩu admin
+    const isAdminPasswordValid = await admin.comparePassword(passwordAdmin);
+    if (!isAdminPasswordValid) {
+      return res.status(403).json({ message: "Nhập sai mật khẩu của admin" });
+    }
+
+    // 3. Tìm user cần đổi mật khẩu
+    const user = await Users.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Không tồn tại user này" });
+    }
+
+    // Hàm random mật khẩu
+    const generatePassword = () =>
+      (
+        ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789", "!@#$%^&*"]
+          .map((set) => set[Math.floor(Math.random() * set.length)])
+          .join("") +
+        Array.from(
+          { length: 5 },
+          () =>
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"[
+              Math.floor(Math.random() * 70)
+            ]
+        ).join("")
+      )
+        .split("")
+        .sort(() => Math.random() - 0.5)
+        .join("");
+
+    // 4. Tạo mật khẩu mới và cập nhật
+    const newPassword = generatePassword();
+    user.password = newPassword;
+    await user.save();
+
+    // 5. Gửi email
+    await transporter.sendMail({
+      from: `Duy Anh Shop <no-reply@duyanhshop.com>`,
+      to: email,
+      subject: "Khôi phục mật khẩu tài khoản",
+      text: `Mật khẩu mới của bạn là: ${newPassword} Vui lòng đăng nhập và đổi lại mật khẩu trong trang cá nhân.`,
+    });
+
+    return res.status(200).json({ message: "Cập nhật mật khẩu thành công" });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   RegisterUserAPI,
   LoginUserAPI,
@@ -679,4 +728,5 @@ module.exports = {
   checkRestToken,
   RegisterUserAPI_Alternative,
   isAccountUserLockerAPI,
+  sendPasswordRecoveryEmail,
 };
