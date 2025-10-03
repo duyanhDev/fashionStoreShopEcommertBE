@@ -217,7 +217,6 @@ class OrderService {
 
     try {
       const info = await this.emailTransporter.sendMail(mailOptions);
-      console.log("Email sent: " + info.response);
     } catch (error) {
       console.error("Error sending email:", error);
     }
@@ -235,12 +234,6 @@ class OrderService {
     const result = await Cart.updateOne(
       { _id: CartId },
       { $pull: { items: { _id: { $in: idsToDelete } } } }
-    );
-
-    console.log(
-      result.modifiedCount > 0
-        ? `${idsToDelete.length} sản phẩm đã được xóa khỏi giỏ hàng.`
-        : "Không có sản phẩm nào được xóa."
     );
   }
 
@@ -295,7 +288,7 @@ class OrderService {
         orderId: order._id,
         products: formattedProducts,
         isAdmin: true,
-        message: `Có một đơn hàng mới từ người dùng là ${username}.`,
+        message: `Có một đơn hàng mới từ người dùng ${username}`,
         isCheck: true,
       });
 
@@ -321,7 +314,7 @@ class OrderService {
       {
         itemid: "1",
         itemname: "Order Items",
-        itemprice: totalAmount >= 300000 ? totalAmount : totalAmount + 35000,
+        itemprice: totalAmount,
         itemquantity: 1,
       },
     ];
@@ -382,8 +375,7 @@ class OrderService {
 
     const createDate = moment().format("YYYYMMDDHHmmss");
     const orderId = moment().format("DDHHmmss");
-    const amount =
-      totalAmount >= 300000 ? totalAmount * 100 : totalAmount * 100 + 35000;
+    const amount = totalAmount * 100;
 
     let vnp_Params = {
       vnp_Amount: amount,
@@ -493,15 +485,13 @@ class OrderService {
         `amount=${encodeURIComponent(totalAmount)}&` +
         `des=${encodeURIComponent(transferContent)}`;
 
-      console.log("✅ QR URL generated:", qrUrl);
-
       return {
         EC: 0,
         success: true,
         qrCodeUrl: qrUrl, // Dùng VietQR (ổn định hơn)
         sePayQrUrl: sePayQrUrl, // Backup SePay QR
         paymentCode: transferContent,
-        amount: totalAmount > 300000 ? totalAmount : totalAmount + 35000,
+        amount: totalAmount,
         content: transferContent,
         orderId: orderId,
         accountInfo: {
@@ -673,7 +663,6 @@ const CreateOrder = async (req, res) => {
             newOrder._id
           );
 
-          // Kiểm tra kết quả
           if (ZaloPayResult.EC === 0) {
             // Thanh toán thành công
             await orderService.deductStock(items);
@@ -749,6 +738,7 @@ const CreateOrder = async (req, res) => {
           // Kiểm tra kết quả thanh toán
           if (momoResult.EC === 0) {
             await orderService.deductStock(items);
+            newOrder.paymentStatus = PAYMENT_STATUS.PENDING;
             await orderService.updateCartItems(CartId, idItems);
             await newOrder.save();
           }
@@ -768,9 +758,9 @@ const CreateOrder = async (req, res) => {
         await orderService.updateCartItems(CartId, idItems);
         await newOrder.save();
         return res.status(200).json({
-          paymentMethod: paymentMethod,
-          order_id: newOrder._id,
           EC: 0,
+          order_id: newOrder._id,
+          paymentMethod: paymentMethod,
           message:
             "Order created successfully. Payment will be made upon delivery.",
         });
@@ -791,7 +781,11 @@ const listOderUserId = async (req, res) => {
   try {
     let { userId } = req.params;
 
-    let data = await Order.find({ userId: userId }).sort({ createdAt: -1 });
+    let data = await Order.find({ userId: userId })
+      .sort({
+        createdAt: -1,
+      })
+      .populate("userId", "email name"); // chỉ lấy email và name
 
     return res.status(200).json({
       EC: 0,
@@ -1001,8 +995,6 @@ const UpDateCompleted = async (req, res) => {
     // Cập nhật userGroup theo tổng tiền mới
     let updatedUserGroup = "newUser"; // Mặc định
     if (user.totalPrice >= 1012134430) {
-      console.log(updatedUserGroup);
-
       updatedUserGroup = "elite";
     } else if (user.totalPrice >= 50000000) {
       updatedUserGroup = "loyalCustomer";
@@ -1011,7 +1003,6 @@ const UpDateCompleted = async (req, res) => {
     } else if (user.totalPrice >= 1000000) {
       updatedUserGroup = "regular";
     }
-    console.log(updatedUserGroup);
 
     // Nếu userGroup thay đổi, cập nhật lại trong database
     if (user.userGroup !== updatedUserGroup) {
@@ -1129,7 +1120,8 @@ const getTotalProductsSoldByType = async (req, res) => {
 
 const ListOderProducts = async (req, res) => {
   try {
-    let data = await Order.find({}).sort({ createdAt: -1 }).populate("");
+    let data = await Order.find({}).sort({ createdAt: -1 });
+
     return res.status(200).json({
       EC: 0,
       data: data,
@@ -1386,6 +1378,7 @@ const getListDallyOrder = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   CreateOrder,
   listOderUserId,
