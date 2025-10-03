@@ -82,7 +82,11 @@ class OrderService {
     return user;
   }
 
-  async validateAndProcessItems(items, discountValue = 0) {
+  async validateAndProcessItems(
+    items,
+    discountValue = 0,
+    discountType = "percentage"
+  ) {
     let totalAmount = 0;
     const processedItems = [];
 
@@ -96,23 +100,27 @@ class OrderService {
         throw new Error(`Product with ID ${item.productId} not found.`);
       }
 
-      const discountAmount = (discountValue / 100) * item.price;
-      const finalPrice =
-        item.price > 300000
-          ? item.price - discountAmount + 35000
-          : item.price - discountAmount;
+      // ✅ Tính discount theo type
+      let discountAmount = 0;
+      if (discountType === "percentage") {
+        discountAmount = (discountValue / 100) * item.price;
+      } else if (discountType === "fixed") {
+        discountAmount = discountValue;
+      }
 
-      totalAmount +=
-        discountValue > 0
-          ? finalPrice
-          : item.price > 300000
-          ? item.price
-          : item.price + 35000;
+      // Đảm bảo không trừ quá giá gốc
+      discountAmount = Math.min(discountAmount, item.price);
+
+      const basePrice = item.price - discountAmount;
+      const finalPrice = basePrice > 300000 ? basePrice + 35000 : basePrice;
+
+      totalAmount += finalPrice;
 
       processedItems.push({
         ...item,
         product,
-        finalPrice: discountValue > 0 ? finalPrice : item.price,
+        discountAmount,
+        finalPrice,
       });
     }
 
@@ -582,6 +590,7 @@ const CreateOrder = async (req, res) => {
       CartId,
       discountValue,
       idDiscount,
+      discountType,
       order_code,
       idItems,
     } = req.body;
@@ -591,7 +600,11 @@ const CreateOrder = async (req, res) => {
 
     // Process items and calculate total
     const { processedItems, totalAmount } =
-      await orderService.validateAndProcessItems(items, discountValue);
+      await orderService.validateAndProcessItems(
+        items,
+        discountValue,
+        discountType
+      );
 
     // Generate email content
     const emailContent = orderService.generateEmailContent(
