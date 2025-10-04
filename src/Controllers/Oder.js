@@ -112,7 +112,7 @@ class OrderService {
       discountAmount = Math.min(discountAmount, item.price);
 
       const basePrice = item.price - discountAmount;
-      const finalPrice = basePrice > 300000 ? basePrice + 35000 : basePrice;
+      const finalPrice = basePrice > 300000 ? basePrice : basePrice + 35000;
 
       totalAmount += finalPrice;
 
