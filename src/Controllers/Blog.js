@@ -75,7 +75,6 @@ const newUpdateBlogAPI = async (req, res) => {
       title: req.body.title,
       tip: req.body.tip,
       content: req.body.content,
-      slug: req.body.slug, // chú ý tên khớp với hàm newUpdateBlog
       regex: req.body.regex,
       userId: req.body.userId,
       readTime: req.body.readTime,
