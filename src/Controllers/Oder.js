@@ -9,7 +9,8 @@ const qs = require("qs");
 const crypto = require("crypto");
 const moment = require("moment");
 require("dotenv").config();
-const nodemailer = require("nodemailer");
+
+const { Resend } = require("resend");
 const axios = require("axios");
 const Transaction = require("../Model/transactionSchema");
 
@@ -45,21 +46,7 @@ const PAYMENT_STATUS = {
 
 class OrderService {
   constructor() {
-    this.emailTransporter = this.initializeEmailTransporter();
-  }
-
-  initializeEmailTransporter() {
-    return nodemailer.createTransport({
-      service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER || "dangtrinhduyanh100202@gmail.com",
-        pass: process.env.EMAIL_PASS || "qfmc zizc ppdg ldjg",
-      },
-      secure: true,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
+    this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
   validateOrderRequest(req) {
@@ -211,18 +198,19 @@ class OrderService {
     return emailContent;
   }
 
-  async sendOrderEmail(email, emailContent) {
-    const mailOptions = {
-      from: process.env.EMAIL_USER || "dangtrinhduyanh100202@gmail.com",
-      to: email,
-      subject: "BẠN ĐÃ ĐẶT ĐƠN HÀNG THÀNH CÔNG TRÊN DOSIIN",
-      html: emailContent,
-    };
-
+  async sendEmail(to, html) {
     try {
-      const info = await this.emailTransporter.sendMail(mailOptions);
+      const data = await this.resend.emails.send({
+        from: "no-reply@resend.dev", // hoặc "no-reply@yourdomain.com" nếu có domain xác minh
+        to,
+        subject: "Cảm ơn bạn đã đặt hàng trên shop Duy Anh",
+        html,
+      });
+
+      return data;
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("❌ Error sending email:", error);
+      throw error;
     }
   }
 
@@ -632,7 +620,7 @@ const CreateOrder = async (req, res) => {
 
     // Send email
     if (email) {
-      await orderService.sendOrderEmail(email, emailContent);
+      await orderService.sendEmail(email, emailContent);
     }
 
     // Update cart
