@@ -7,18 +7,13 @@ const {
 } = require("./../services/Auth");
 const Users = require("./../Model/User");
 const Product = require("./../Model/Product");
-const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const ResetToken = require("../Model/ResetToken");
 require("dotenv").config;
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: "dangtrinhduyanh100202@gmail.com",
-    pass: "qfmc zizc ppdg ldjg",
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const RegisterUserAPI = async (req, res) => {
   try {
     const { name, email, password, isAdmin } = req.body;
@@ -385,27 +380,15 @@ const Forgotpassword = async (req, res) => {
     });
     await resetToken.save();
 
-    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+    const resetLink = `https://fashion-store-shop-ecommert.vercel.app/?token=${token}`;
 
-    // Thiết lập transporter để gửi email
-    let transporter = nodemailer.createTransport({
-      service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // Thiết lập thông tin email
-    const mailOptions = {
-      from: `"Shop Duy Anh" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: "no-reply@resend.dev", // có thể dùng tạm email test này
       to: user.email,
       subject: "Reset mật khẩu",
       html: `<p>Nhấn vào link để đặt lại mật khẩu (10 phút):</p><a href="${resetLink}">${resetLink}</a>`,
-    };
-
-    // Gửi email
-    await transporter.sendMail(mailOptions);
+    });
+    // Thiết lập thông tin email
 
     return res.json({ message: "Đã gửi email reset password" });
   } catch (error) {
@@ -515,11 +498,11 @@ const sendOTP = async (req, res) => {
   };
 
   try {
-    await transporter.sendMail({
-      from: `"Duy Anh Shop" <your-email@gmail.com>`, // ghi đúng định dạng from
+    await resend.emails.send({
+      from: "Shop Duy Anh <onboarding@resend.dev>",
       to: email,
       subject: "Mã OTP xác thực tài khoản",
-      text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
+      html: `<p>Mã OTP của bạn là: <b>${otp}</b></p><p>Có hiệu lực trong 5 phút.</p>`,
     });
 
     return res.status(200).json({
@@ -697,11 +680,12 @@ const sendPasswordRecoveryEmail = async (req, res) => {
     await user.save();
 
     // 5. Gửi email
-    await transporter.sendMail({
-      from: `Duy Anh Shop <no-reply@duyanhshop.com>`,
+    await resend.emails.send({
+      from: "Shop Duy Anh <onboarding@resend.dev>",
       to: email,
       subject: "Khôi phục mật khẩu tài khoản",
-      text: `Mật khẩu mới của bạn là: ${newPassword} Vui lòng đăng nhập và đổi lại mật khẩu trong trang cá nhân.`,
+      html: `<p>Mật khẩu mới của bạn là: <b>${newPassword}</b></p>
+             <p>Vui lòng đăng nhập và đổi lại mật khẩu sau khi đăng nhập.</p>`,
     });
 
     return res.status(200).json({ message: "Cập nhật mật khẩu thành công" });
