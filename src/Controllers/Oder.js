@@ -9,7 +9,8 @@ const qs = require("qs");
 const crypto = require("crypto");
 const moment = require("moment");
 require("dotenv").config();
-const nodemailer = require("nodemailer");
+
+const { Resend } = require("resend");
 const axios = require("axios");
 const Transaction = require("../Model/transactionSchema");
 
@@ -19,7 +20,8 @@ const SEPAY_CONFIG = {
   accountNumber: "96247609",
   accountName: "DANG TRINH DUY ANH",
   bankCode: "BIDV",
-  webhookSecret: "https://fa492e0aa700.ngrok-free.app/sepay/callback",
+  webhookSecret:
+    "https://fashionstoreshopecommertbe.onrender.com/v1/sepay/callback",
 };
 
 const config = {
@@ -44,17 +46,7 @@ const PAYMENT_STATUS = {
 
 class OrderService {
   constructor() {
-    this.emailTransporter = this.initializeEmailTransporter();
-  }
-
-  initializeEmailTransporter() {
-    return nodemailer.createTransport({
-      service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER || "dangtrinhduyanh100202@gmail.com",
-        pass: process.env.EMAIL_PASS || "qfmc zizc ppdg ldjg",
-      },
-    });
+    this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
   validateOrderRequest(req) {
@@ -182,7 +174,6 @@ class OrderService {
       PAYMENT_METHODS.VNPAY,
       PAYMENT_METHODS.MOMO,
       PAYMENT_METHODS.ZALOPAY,
-      PAYMENT_METHODS.SEPAY,
     ].includes(paymentMethod);
 
     emailContent += `
@@ -207,24 +198,23 @@ class OrderService {
     return emailContent;
   }
 
-  async sendOrderEmail(email, emailContent) {
-    const mailOptions = {
-      from: process.env.EMAIL_USER || "dangtrinhduyanh100202@gmail.com",
-      to: email,
-      subject: "BẠN ĐÃ ĐẶT ĐƠN HÀNG THÀNH CÔNG TRÊN DOSIIN",
-      html: emailContent,
-    };
-
+  async sendEmail(to, html) {
     try {
-      const info = await this.emailTransporter.sendMail(mailOptions);
+      const data = await this.resend.emails.send({
+        from: "no-reply@resend.dev", // hoặc "no-reply@yourdomain.com" nếu có domain xác minh
+        to,
+        subject: "Cảm ơn bạn đã đặt hàng trên shop Duy Anh",
+        html,
+      });
+
+      return data;
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("❌ Error sending email:", error);
+      throw error;
     }
   }
 
   async updateCartItems(CartId, idItems) {
-    console.log(CartId, idItems);
-
     if (!CartId || !idItems?.length) return;
 
     const cartItem = await Cart.findOne({ _id: CartId });
@@ -305,7 +295,7 @@ class OrderService {
     const appTime = Date.now();
 
     const embed_data = {
-      redirecturl: `http://localhost:5173/vnpay_return/${id}`,
+      redirecturl: `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`,
       merchantinfo: "Doisin Store",
       promotioninfo: "",
       redirectdata: "",
@@ -330,7 +320,7 @@ class OrderService {
       item: JSON.stringify(items),
       embed_data: JSON.stringify(embed_data),
       callback_url:
-        " https://870530fd17c2.ngrok-free.app/zalopay-callback".trim(),
+        "https://ccb5-14-191-105-190.ngrok-free.app/zalopay-callback".trim(),
       description: `Doisin - Payment for the order #${transID}`,
       bank_code: "",
       title: `Thanh toán đơn hàng #${transID}`,
@@ -390,7 +380,7 @@ class OrderService {
         `Thanh toan don hang : ${orderId}`
       ).replace(/%20/g, "+"),
       vnp_OrderType: "other",
-      vnp_ReturnUrl: `http://localhost:5173/vnpay_return/${id}`,
+      vnp_ReturnUrl: `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`,
       vnp_TmnCode: vnp_TmnCode,
       vnp_TxnRef: orderId,
       vnp_Version: "2.1.0",
@@ -418,8 +408,8 @@ class OrderService {
     const secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
     const orderInfo = "pay with MoMo";
     const partnerCode = "MOMO";
-    const redirectUrl = `http://localhost:5173/vnpay_return/${id}`;
-    const ipnUrl = `http://localhost:5173/vnpay_return/${id}`;
+    const redirectUrl = `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`;
+    const ipnUrl = `https://fashion-store-shop-ecommert.vercel.app/vnpay_return/${id}`;
     const requestType = "payWithMethod";
     const orderId = partnerCode + new Date().getTime();
     const requestId = orderId;
@@ -486,7 +476,6 @@ class OrderService {
         `bank=${encodeURIComponent(SEPAY_CONFIG.bankCode)}&` +
         `amount=${encodeURIComponent(totalAmount)}&` +
         `des=${encodeURIComponent(transferContent)}`;
-      console.log(sePayQrUrl);
 
       return {
         EC: 0,
@@ -631,7 +620,7 @@ const CreateOrder = async (req, res) => {
 
     // Send email
     if (email) {
-      await orderService.sendOrderEmail(email, emailContent);
+      await orderService.sendEmail(email, emailContent);
     }
 
     // Update cart
@@ -756,8 +745,6 @@ const CreateOrder = async (req, res) => {
 
       case PAYMENT_METHODS.COD:
         // COD trừ stock ngay lập tức
-        console.log(items);
-
         await orderService.deductStock(items);
         newOrder.paymentStatus = PAYMENT_STATUS.PENDING;
         await orderService.updateCartItems(CartId, idItems);
