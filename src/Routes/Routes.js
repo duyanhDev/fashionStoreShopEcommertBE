@@ -157,6 +157,12 @@ const {
   addOnePantsSize,
   updateOnePantsSize,
 } = require("../Controllers/pantsSizeController");
+const {
+  createColorModel,
+  updatedColorModel,
+  listColorModel,
+  deleteColorModel,
+} = require("../Controllers/Color");
 
 /**
  * @swagger
@@ -649,4 +655,10 @@ RouterAPI.delete(
 );
 
 RouterAPI.get("/export-excel", verifyToken, isAdmin, exportTransactionsExcel);
+
+// color
+RouterAPI.get("/color", listColorModel);
+RouterAPI.post("/color", createColorModel);
+RouterAPI.put("/color/:id", updatedColorModel);
+RouterAPI.delete("/color/:id", deleteColorModel);
 module.exports = RouterAPI;
