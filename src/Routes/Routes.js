@@ -21,6 +21,8 @@ const {
   DeleteRatingProductController,
   deleteOneProduct,
   getTopSellingProductsByCategory,
+  DeleteImageProduct,
+  exportProductsToExcel,
 } = require("./../Controllers/Products");
 const {
   CreateCategoryAPI,
@@ -164,6 +166,12 @@ const {
   deleteColorModel,
 } = require("../Controllers/Color");
 
+RouterAPI.get(
+  "/products/export-excel",
+  verifyToken,
+  isAdmin,
+  exportProductsToExcel
+);
 /**
  * @swagger
  * /products:
@@ -329,6 +337,8 @@ RouterAPI.get(
 // update view sản phẩm
 
 RouterAPI.post("/product/update-view/:slug", updateViewProductController);
+
+//
 
 // Category
 
@@ -654,6 +664,12 @@ RouterAPI.delete(
   deleteOnePantsSize
 );
 
+RouterAPI.delete(
+  "/products/:productId/variant/image/:imageId",
+  verifyToken,
+  isAdmin,
+  DeleteImageProduct
+);
 RouterAPI.get("/export-excel", verifyToken, isAdmin, exportTransactionsExcel);
 
 // color

@@ -24,7 +24,7 @@ const MessageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    role: { type: String, enum: ["admin", "customer"] },
+    role: { type: String, enum: ["admin", "customer", "staff"] },
     sentAt: {
       type: Date,
       default: Date.now,

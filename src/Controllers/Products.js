@@ -19,6 +19,7 @@ const Products = require("./../Model/Product");
 const { json } = require("express");
 const mongoose = require("mongoose");
 const cloudinary = require("cloudinary").v2;
+const ExcelJS = require("exceljs");
 require("dotenv").config();
 
 cloudinary.config({
@@ -1087,6 +1088,212 @@ const getTopSellingProductsByCategory = async (req, res) => {
   }
 };
 
+const DeleteImageProduct = async (req, res) => {
+  const { productId, imageId } = req.params;
+  try {
+    const product = await Products.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    }
+
+    // Lặp qua các variant và xóa ảnh theo ID
+    let found = false;
+    product.variants = product.variants.map((variant) => {
+      const originalLength = variant.images.length;
+      variant.images = variant.images.filter(
+        (img) => img._id.toString() !== imageId
+      );
+
+      if (variant.images.length !== originalLength) {
+        found = true;
+      }
+      return variant;
+    });
+
+    if (!found) {
+      return res.status(404).json({ message: "Không tìm thấy ảnh cần xóa" });
+    }
+
+    await product.save();
+    res.status(200).json({ EC: 0, message: "Xóa ảnh thành công", product });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi server", error });
+  }
+};
+
+// // Export tất cả sản phẩm ra Excel
+
+const exportProductsToExcel = async (req, res) => {
+  try {
+    const products = await Products.find({})
+      .populate("category", "name")
+      .sort({ createdAt: -1 });
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({
+        EC: 1,
+        message: "Không có sản phẩm nào để xuất",
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Sản Phẩm");
+
+    worksheet.columns = [
+      { header: "STT", key: "index", width: 8 },
+      { header: "Tên Sản Phẩm", key: "name", width: 30 },
+      { header: "Mô Tả", key: "description", width: 40 },
+      { header: "Danh Mục", key: "category", width: 15 },
+      { header: "Loại", key: "care", width: 15 },
+      { header: "Giá Vốn (VNĐ)", key: "costPrice", width: 15 },
+      { header: "Giá Bán (VNĐ)", key: "price", width: 15 },
+      { header: "Tổng Chi Phí (VNĐ)", key: "totalCost", width: 18 },
+      { header: "Tồn Kho", key: "stock", width: 12 },
+      { header: "Màu Sắc", key: "colors", width: 20 },
+      { header: "Kích Thước", key: "sizes", width: 25 },
+      { header: "Trạng Thái", key: "status", width: 12 },
+      { header: "Ngày Tạo", key: "createdAt", width: 18 },
+    ];
+    // Style cho header
+    worksheet.getRow(1).font = {
+      bold: true,
+      size: 12,
+      color: { argb: "FFFFFFFF" },
+    };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF0066CC" },
+    };
+    worksheet.getRow(1).alignment = {
+      vertical: "middle",
+      horizontal: "center",
+    };
+    worksheet.getRow(1).height = 25;
+
+    // Thêm dữ liệu
+    products.forEach((product, index) => {
+      // Lấy tất cả màu sắc
+      const colors = product.variants
+        .map((v) => v.color)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join(", ");
+
+      // Lấy tất cả size
+      const sizes = product.variants
+        .flatMap((v) => v.sizes.map((s) => s.size))
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join(", ");
+
+      const row = worksheet.addRow({
+        index: index + 1,
+        name: product.name || "",
+        description: product.description || "",
+        category: product.category?.name || "N/A",
+        care: product.care || "N/A",
+        costPrice: product.costPrice || 0,
+        price: product.price || 0,
+        totalCost: product.totalCost || 0,
+        stock: product.stock || 0,
+        colors: colors || "N/A",
+        sizes: sizes || "N/A",
+        status: product.stock > 0 ? "Còn hàng" : "Hết hàng",
+        createdAt: product.createdAt
+          ? new Date(product.createdAt).toLocaleDateString("vi-VN")
+          : "N/A",
+      });
+
+      // Style cho các hàng
+      row.alignment = { vertical: "middle", wrapText: true };
+
+      // Tô màu xen kẽ
+      if (index % 2 === 0) {
+        row.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF0F8FF" },
+        };
+      }
+
+      // Tô màu cho cột trạng thái
+      const statusCell = row.getCell("status");
+      if (product.stock > 0) {
+        statusCell.font = { color: { argb: "FF008000" }, bold: true };
+      } else {
+        statusCell.font = { color: { argb: "FFFF0000" }, bold: true };
+      }
+
+      // Format số tiền
+      ["costPrice", "price", "totalCost"].forEach((key) => {
+        const cell = row.getCell(key);
+        cell.numFmt = "#,##0";
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+      });
+    });
+
+    // Thêm border cho tất cả cells
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+
+    // Thêm thống kê ở cuối
+    const lastRow = worksheet.lastRow.number + 2;
+
+    const totalProducts = products.length;
+    const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+    const totalValue = products.reduce((sum, p) => sum + (p.totalCost || 0), 0);
+    const inStock = products.filter((p) => p.stock > 0).length;
+    const outOfStock = totalProducts - inStock;
+
+    worksheet.addRow([]);
+
+    const summaryRow1 = worksheet.addRow(["THỐNG KÊ TỔNG"]);
+    summaryRow1.font = { bold: true, size: 13 };
+    summaryRow1.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFFFCC00" },
+    };
+
+    worksheet.addRow(["Tổng số sản phẩm:", totalProducts]);
+    worksheet.addRow(["Còn hàng:", inStock]);
+    worksheet.addRow(["Hết hàng:", outOfStock]);
+    worksheet.addRow(["Tổng tồn kho:", totalStock]);
+    worksheet.addRow(["Tổng giá trị:", totalValue, "", "", "", "", "", "VNĐ"]);
+
+    // Set response headers
+    const fileName = `SanPham_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(fileName)}"`
+    );
+
+    // Ghi file và gửi về client
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Error exporting products to Excel:", error);
+    res.status(500).json({
+      EC: 1,
+      message: "Lỗi khi xuất file Excel",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   AddProductsAPI,
   ListProductsAPI,
@@ -1104,4 +1311,6 @@ module.exports = {
   DeleteRatingProductController,
   deleteOneProduct,
   getTopSellingProductsByCategory,
+  DeleteImageProduct,
+  exportProductsToExcel,
 };
