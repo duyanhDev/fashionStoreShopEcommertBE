@@ -1,11 +1,9 @@
 const { jsonrepair } = require("jsonrepair");
-
 const { GoogleGenAI } = require("@google/genai");
 require("dotenv").config();
-
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
+const Products = require("./../Model/Product");
 // Hàm xử lý phản hồi Gemini và làm sạch JSON
 function extractCleanJSON(text) {
   // Trích xuất JSON từ block code (nếu có)
@@ -46,17 +44,65 @@ const handleGeminiRequest = async (req, res) => {
   }
 
   try {
+    // Lấy thông tin sản phẩm từ database (bao gồm cả images và slug)
+    const products = await Products.find({})
+      .select(
+        "name description price discount discountedPrice stock brand sold slug variants"
+      )
+      .limit(50);
+
+    // Làm sạch description để tránh lỗi
+    const productContext = products
+      .map((p) => {
+        const cleanDesc = p.description
+          ? p.description
+              .replace(/<[^>]*>/g, "")
+              .replace(/[\x00-\x1F\x7F-\x9F]/g, "")
+              .substring(0, 200)
+          : "Không có mô tả";
+
+        return `
+Sản phẩm: ${p.name}
+ID: ${p._id}
+Thương hiệu: ${p.brand || "N/A"}
+Giá gốc: ${p.price?.toLocaleString("vi-VN")}đ
+Giảm giá: ${p.discount || 0}%
+Giá sau giảm: ${p.discountedPrice?.toLocaleString("vi-VN")}đ
+Tồn kho: ${p.stock || 0}
+Đã bán: ${p.sold || 0}
+Mô tả: ${cleanDesc}
+---`;
+      })
+      .join("\n");
+
+    // Tạo prompt cho Gemini với yêu cầu trả về product IDs
+    const fullPrompt = `
+Bạn là trợ lý bán hàng thời trang. Dưới đây là thông tin các sản phẩm hiện có:
+
+${productContext}
+
+Câu hỏi của khách hàng: ${message}
+
+Hãy trả lời câu hỏi dựa trên thông tin sản phẩm ở trên. 
+QUAN TRỌNG: Nếu bạn đề xuất hoặc nhắc đến sản phẩm cụ thể, hãy kết thúc câu trả lời bằng dòng:
+PRODUCT_IDS: [id1, id2, id3]
+với id là ID của các sản phẩm bạn đề xuất.
+
+Ví dụ:
+"Tôi gợi ý cho bạn áo Levents Love Ring Regular Tee với giá ưu đãi.
+PRODUCT_IDS: [677743a80a429947e4d862b3]"
+`;
+
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash-001",
       contents: [
         {
           role: "user",
-          parts: [{ text: message + " (trả lời bằng tiếng Việt)" }],
+          parts: [{ text: fullPrompt }],
         },
       ],
     });
 
-    // Lấy kết quả từ phần nội dung đầu tiên của candidate
     const text = response.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
@@ -65,7 +111,50 @@ const handleGeminiRequest = async (req, res) => {
         .json({ error: "No response content from Gemini." });
     }
 
-    return res.status(200).json({ response: text });
+    // Làm sạch text
+    const cleanText = text
+      .replace(/[\x00-\x1F\x7F-\x9F]/g, "")
+      .replace(/\n\n+/g, "\n\n")
+      .trim();
+
+    // Tìm product IDs trong response
+    const productIdsMatch = cleanText.match(/PRODUCT_IDS:\s*\[(.*?)\]/);
+    let suggestedProducts = [];
+
+    if (productIdsMatch) {
+      const ids = productIdsMatch[1]
+        .split(",")
+        .map((id) => id.trim().replace(/['"]/g, ""))
+        .filter((id) => id);
+
+      // Lấy thông tin chi tiết các sản phẩm được đề xuất
+      suggestedProducts = await Products.find({ _id: { $in: ids } })
+        .select("name slug price discountedPrice variants")
+        .lean();
+
+      // Format thông tin sản phẩm
+      suggestedProducts = suggestedProducts.map((p) => {
+        // Lấy ảnh đầu tiên từ variant đầu tiên
+        const firstImage = p.variants?.[0]?.images?.[0] || null;
+
+        return {
+          _id: p._id,
+          name: p.name,
+          price: p.price,
+          discountedPrice: p.discountedPrice,
+          image: firstImage,
+          detailUrl: `https://fashion-store-shop-ecommert.vercel.app/product/${p.slug}`,
+        };
+      });
+    }
+
+    // Loại bỏ PRODUCT_IDS khỏi text response
+    const finalText = cleanText.replace(/PRODUCT_IDS:\s*\[.*?\]/g, "").trim();
+
+    return res.status(200).json({
+      response: finalText,
+      products: suggestedProducts,
+    });
   } catch (err) {
     console.error("Lỗi từ Gemini API:", err);
     return res.status(500).json({ error: "Lỗi xử lý từ AI." });
@@ -111,6 +200,8 @@ Trả lời bằng tiếng Việt.
     if (!text) {
       return res.status(500).json({ error: "Không có phản hồi từ Gemini." });
     }
+
+    console.log("📄 Raw Gemini:", text);
 
     // Dùng jsonrepair để tự động sửa lỗi format
     const repairedJSON = jsonrepair(text);

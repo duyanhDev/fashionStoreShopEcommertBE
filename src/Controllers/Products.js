@@ -16,7 +16,6 @@ const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 const Products = require("./../Model/Product");
-const { json } = require("express");
 const mongoose = require("mongoose");
 const cloudinary = require("cloudinary").v2;
 const ExcelJS = require("exceljs");

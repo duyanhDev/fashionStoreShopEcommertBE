@@ -106,7 +106,12 @@ const addMultipleToCart = async (req, res) => {
 
     await Promise.all(
       items.map(async (item) => {
-        const productId = item.productId?._id || item.productId || item._id;
+        const productId =
+          item.product?._id ||
+          item.productId?._id ||
+          item.productId ||
+          item._id;
+
         const product = await Product.findById(productId);
         if (!product) return;
 
