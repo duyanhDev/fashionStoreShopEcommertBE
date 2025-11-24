@@ -10,14 +10,14 @@ const AddCategory = async (name, description) => {
   try {
     const existingCategory = await Category.findOne({ name });
     if (existingCategory) {
-      return;
+      throw new Error("Category đã tồn tại");
     }
 
     const newCategory = await Category.create({ name, description });
 
     return newCategory;
   } catch (error) {
-    console.error("Đã xảy ra lỗi:", error);
+    throw error; // Ném lỗi lên trên để controller xử lý
   }
 };
 

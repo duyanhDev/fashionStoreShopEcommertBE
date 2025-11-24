@@ -14,12 +14,34 @@ const CreateCategoryAPI = async (req, res) => {
     const clothingCategory = await AddCategory(name, description);
 
     return res.status(201).json({
+      EC: 0,
       message: "Tạo thành công category",
       data: clothingCategory,
     });
   } catch (error) {
     console.error("Đã xảy ra lỗi khi tạo danh mục:", error);
-    res.status(500).json({ message: "Đã xảy ra lỗi", error });
+
+    // Xử lý lỗi trùng tên category
+    if (error.message === "Category đã tồn tại") {
+      return res.status(409).json({
+        message: "Category với tên này đã tồn tại",
+        error: error.message,
+      });
+    }
+
+    // Xử lý lỗi validation của Mongoose
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "Dữ liệu không hợp lệ",
+        error: error.message,
+      });
+    }
+
+    // Lỗi server chung
+    res.status(500).json({
+      message: "Đã xảy ra lỗi server",
+      error: error.message,
+    });
   }
 };
 
