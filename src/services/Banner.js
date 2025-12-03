@@ -76,10 +76,29 @@ const FindOneBanner = async (id) => {
   }
 };
 
+const CheckIsActiveBanner = async (id, isActive) => {
+  try {
+    const banner = await Banner.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true }
+    );
+
+    if (!banner) {
+      return { success: false, message: "Banner không tồn tại" };
+    }
+
+    return { success: true, data: banner };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+};
+
 module.exports = {
   CreateBanner,
   UpdateBanner,
   DeleteBanner,
   ListsBanner,
   FindOneBanner,
+  CheckIsActiveBanner,
 };

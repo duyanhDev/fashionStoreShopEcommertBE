@@ -4,6 +4,7 @@ const {
   DeleteBanner,
   ListsBanner,
   FindOneBanner,
+  CheckIsActiveBanner,
 } = require("../services/Banner");
 const { uploadFileToCloudinary } = require("./../services/Cloudinary");
 
@@ -157,10 +158,24 @@ const FindOneBannerController = async (req, res) => {
     });
   }
 };
+const CheckIsActiveBannerController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    const data = await CheckIsActiveBanner(id, isActive);
+
+    return res.status(200).json({
+      data: data,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 module.exports = {
   CreateBannerController,
   UpdateBannerController,
   DeleteBannerController,
   ListsBannerController,
   FindOneBannerController,
+  CheckIsActiveBannerController,
 };

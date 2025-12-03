@@ -135,6 +135,7 @@ const {
   DeleteBannerController,
   ListsBannerController,
   FindOneBannerController,
+  CheckIsActiveBannerController,
 } = require("../Controllers/Banner");
 const {
   getRevenue,
@@ -617,6 +618,8 @@ RouterAPI.get("/banner", ListsBannerController);
  *         description:  Lấy banner theo id thành công
  */
 RouterAPI.get("/banner-id", FindOneBannerController);
+
+RouterAPI.put("/update-banner-isActive/:id", CheckIsActiveBannerController);
 
 // Api doanh thu
 RouterAPI.get("/revenue/total", getRevenue);
