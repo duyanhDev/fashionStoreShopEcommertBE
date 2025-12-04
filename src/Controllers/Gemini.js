@@ -47,9 +47,9 @@ const handleGeminiRequest = async (req, res) => {
     // Lấy thông tin sản phẩm từ database (bao gồm cả images và slug)
     const products = await Products.find({})
       .select(
-        "name description price discount discountedPrice stock brand sold slug variants"
+        "name description price discount discountedPrice stock view brand sold slug variants"
       )
-      .limit(50);
+      .limit(100);
 
     // Làm sạch description để tránh lỗi
     const productContext = products
@@ -70,6 +70,7 @@ Giảm giá: ${p.discount || 0}%
 Giá sau giảm: ${p.discountedPrice?.toLocaleString("vi-VN")}đ
 Tồn kho: ${p.stock || 0}
 Đã bán: ${p.sold || 0}
+Lượt xem : ${p.view || 0}
 Mô tả: ${cleanDesc}
 ---`;
       })
@@ -142,6 +143,7 @@ PRODUCT_IDS: [677743a80a429947e4d862b3]"
           name: p.name,
           price: p.price,
           discountedPrice: p.discountedPrice,
+          view: p.view,
           image: firstImage,
           detailUrl: `https://fashion-store-shop-ecommert.vercel.app/product/${p.slug}`,
         };
