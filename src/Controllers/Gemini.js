@@ -44,11 +44,12 @@ const handleGeminiRequest = async (req, res) => {
   }
 
   try {
-    // Lấy thông tin sản phẩm từ database (bao gồm cả images và slug)
+    // Lấy thông tin sản phẩm từ database
     const products = await Products.find({})
       .select(
         "name description price discount discountedPrice stock view brand sold slug variants"
       )
+      .sort({ sold: -1 }) // Sắp xếp theo số lượng đã bán giảm dần
       .limit(100);
 
     // Làm sạch description để tránh lỗi
@@ -70,7 +71,7 @@ Giảm giá: ${p.discount || 0}%
 Giá sau giảm: ${p.discountedPrice?.toLocaleString("vi-VN")}đ
 Tồn kho: ${p.stock || 0}
 Đã bán: ${p.sold || 0}
-Lượt xem : ${p.view || 0}
+Lượt xem: ${p.view || 0}
 Mô tả: ${cleanDesc}
 ---`;
       })
@@ -78,20 +79,20 @@ Mô tả: ${cleanDesc}
 
     // Tạo prompt cho Gemini với yêu cầu trả về product IDs
     const fullPrompt = `
-Bạn là trợ lý bán hàng thời trang. Dưới đây là thông tin các sản phẩm hiện có:
+Bạn là trợ lý bán hàng thời trang. Dưới đây là thông tin các sản phẩm hiện có (đã được sắp xếp theo số lượng bán từ cao đến thấp):
 
 ${productContext}
 
 Câu hỏi của khách hàng: ${message}
 
 Hãy trả lời câu hỏi dựa trên thông tin sản phẩm ở trên. 
-QUAN TRỌNG: Nếu bạn đề xuất hoặc nhắc đến sản phẩm cụ thể, hãy kết thúc câu trả lời bằng dòng:
-PRODUCT_IDS: [id1, id2, id3]
-với id là ID của các sản phẩm bạn đề xuất.
 
-Ví dụ:
-"Tôi gợi ý cho bạn áo Levents Love Ring Regular Tee với giá ưu đãi.
-PRODUCT_IDS: [677743a80a429947e4d862b3]"
+LƯU Ý QUAN TRỌNG:
+- Nếu khách hỏi về sản phẩm bán chạy, hot, phổ biến nhất thì hãy đề xuất các sản phẩm có số lượng "Đã bán" cao nhất (danh sách đã được sắp xếp sẵn).
+- Nếu bạn đề xuất hoặc nhắc đến sản phẩm cụ thể, hãy kết thúc câu trả lời bằng dòng:
+  PRODUCT_IDS: [id1, id2, id3]
+  
+Ví dụ: "Tôi gợi ý cho bạn áo Levents Love Ring Regular Tee với giá ưu đãi. PRODUCT_IDS: [677743a80a429947e4d862b3]"
 `;
 
     const response = await ai.models.generateContent({
@@ -129,25 +130,33 @@ PRODUCT_IDS: [677743a80a429947e4d862b3]"
         .filter((id) => id);
 
       // Lấy thông tin chi tiết các sản phẩm được đề xuất
-      suggestedProducts = await Products.find({ _id: { $in: ids } })
-        .select("name slug price discountedPrice variants")
+      const foundProducts = await Products.find({ _id: { $in: ids } })
+        .select("name slug price discountedPrice variants sold view")
         .lean();
 
-      // Format thông tin sản phẩm
-      suggestedProducts = suggestedProducts.map((p) => {
-        // Lấy ảnh đầu tiên từ variant đầu tiên
-        const firstImage = p.variants?.[0]?.images?.[0] || null;
+      // Sắp xếp theo thứ tự IDs gốc để giữ thứ tự đề xuất
+      const productMap = new Map(
+        foundProducts.map((p) => [p._id.toString(), p])
+      );
 
-        return {
-          _id: p._id,
-          name: p.name,
-          price: p.price,
-          discountedPrice: p.discountedPrice,
-          view: p.view,
-          image: firstImage,
-          detailUrl: `https://fashion-store-shop-ecommert.vercel.app/product/${p.slug}`,
-        };
-      });
+      suggestedProducts = ids
+        .map((id) => productMap.get(id))
+        .filter(Boolean)
+        .map((p) => {
+          // Lấy ảnh đầu tiên từ variant đầu tiên
+          const firstImage = p.variants?.[0]?.images?.[0] || null;
+
+          return {
+            _id: p._id,
+            name: p.name,
+            price: p.price,
+            discountedPrice: p.discountedPrice,
+            sold: p.sold,
+            view: p.view,
+            image: firstImage,
+            detailUrl: `https://fashion-store-shop-ecommert.vercel.app/product/${p.slug}`,
+          };
+        });
     }
 
     // Loại bỏ PRODUCT_IDS khỏi text response
