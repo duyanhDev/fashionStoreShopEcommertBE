@@ -112,4 +112,39 @@ router.get("/user", authMiddleware, (req, res) => {
   });
 });
 
+router.post("/google/save-user", async (req, res) => {
+  try {
+    const { email, name, avatar } = req.body;
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu dữ liệu người dùng" });
+    }
+
+    // Kiểm tra xem user đã tồn tại chưa
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        email,
+        name,
+        avatar,
+      });
+    } else {
+      // Nếu có rồi thì update thông tin mới nhất
+      user.name = name;
+      user.avatar = avatar;
+      await user.save();
+    }
+
+    return res.json({ success: true, user });
+  } catch (err) {
+    console.error("❌ Lỗi lưu user Google:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi server", error: err.message });
+  }
+});
+
 module.exports = router;
